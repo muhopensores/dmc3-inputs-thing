@@ -1,0 +1,62 @@
+Microsoft (R) Macro Assembler (x64) Version 14.16.27023.1   08/15/19 21:06:53
+dinp.asm						     Page 1 - 1
+
+
+ 00000000			.CODE
+				;-----------External usage--------------------------
+				EXTRN  DirectInput8Create : qword;
+				EXTRN  DllCanUnloadNow : qword;
+				EXTRN  DllGetClassObject : qword;
+				EXTRN  DllRegisterServer : qword;
+				EXTRN  DllUnregisterServer: qword;
+				;-----------Function definitions--------------------
+ 00000000			_DirectInput8Create PROC
+ 00000000  FF 25 00000000 E		jmp qword ptr [DirectInput8Create]
+ 00000006			_DirectInput8Create ENDP
+
+ 00000006			_DllCanUnloadNow PROC
+ 00000006  FF 25 00000000 E		jmp qword ptr [DllCanUnloadNow]
+ 0000000C			_DllCanUnloadNow ENDP
+
+ 0000000C			_DllGetClassObject PROC
+ 0000000C  FF 25 00000000 E		jmp qword ptr [DllGetClassObject]
+ 00000012			_DllGetClassObject ENDP
+
+ 00000012			_DllRegisterServer PROC
+ 00000012  FF 25 00000000 E		jmp qword ptr [DllRegisterServer]
+ 00000018			_DllRegisterServer ENDP
+
+ 00000018			_DllUnregisterServer PROC
+ 00000018  FF 25 00000000 E		jmp qword ptr [DllUnregisterServer]
+ 0000001E			_DllUnregisterServer ENDP
+
+				END
+Microsoft (R) Macro Assembler (x64) Version 14.16.27023.1   08/15/19 21:06:53
+dinp.asm						     Symbols 2 - 1
+
+
+
+
+Procedures, parameters, and locals:
+
+                N a m e                 Type     Value    Attr
+
+_DirectInput8Create  . . . . . .	P 	 00000000 _TEXT	Length= 00000006 Public
+_DllCanUnloadNow . . . . . . . .	P 	 00000006 _TEXT	Length= 00000006 Public
+_DllGetClassObject . . . . . . .	P 	 0000000C _TEXT	Length= 00000006 Public
+_DllRegisterServer . . . . . . .	P 	 00000012 _TEXT	Length= 00000006 Public
+_DllUnregisterServer . . . . . .	P 	 00000018 _TEXT	Length= 00000006 Public
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+DirectInput8Create . . . . . . .	QWord	 00000000 _TEXT	External
+DllCanUnloadNow  . . . . . . . .	QWord	 00000000 _TEXT	External
+DllGetClassObject  . . . . . . .	QWord	 00000000 _TEXT	External
+DllRegisterServer  . . . . . . .	QWord	 00000000 _TEXT	External
+DllUnregisterServer  . . . . . .	QWord	 00000000 _TEXT	External
+
+	   0 Warnings
+	   0 Errors
