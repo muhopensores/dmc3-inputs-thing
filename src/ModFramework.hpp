@@ -10,7 +10,6 @@ class Mods;
 
 #include "utility/ChronoAlias.hpp"
 
-
 // Global facilitator
 class ModFramework {
 public:

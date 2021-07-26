@@ -17,6 +17,7 @@
 #include "ModFramework.hpp"
 
 #include "Config.hpp"
+#include "mods/UIButton.hpp"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -138,6 +139,9 @@ bool ModFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_p
 		if (w_param == VK_INSERT) {
 			m_draw_ui = !m_draw_ui;
 		}
+		if (w_param == UIButton::ui_button_get_wparam()) {
+			m_draw_ui = !m_draw_ui;
+		}
 	}
 	/*if (message == WM_MOUSEMOVE) {
 		m_draw_cursor = true;
@@ -208,7 +212,7 @@ void ModFramework::draw_ui() {
 
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_::ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 500), ImGuiCond_::ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(410, 500), ImGuiCond_::ImGuiCond_Once);
 
     ImGui::Begin("ModFramework", &m_draw_ui);
 
@@ -243,9 +247,12 @@ void ModFramework::draw_about() {
 
     ImGui::TreePush("About");
 
-    ImGui::Text("Author: praydog");
-    ImGui::Text("Inspired by the Kanan project.");
+    ImGui::Text("Authors: Siyan, endneo, cheburrat0r, deepdarkkapustka");
+	ImGui::Text("https://github.com/muhopensores/dmc3-inputs-thing/");
+	ImGui::NewLine();
+    ImGui::Text("Inspired by RE2Framework/Kanan project.");
     ImGui::Text("https://github.com/praydog/RE2-Mod-Framework");
+    ImGui::Text("https://github.com/cursey/kanan-new");
 
     if (ImGui::CollapsingHeader("Licenses")) {
         ImGui::TreePush("Licenses");

@@ -80,7 +80,7 @@ void PracticeMode::custom_imgui_window() {
 	ImGui::SetWindowFontScale(1.0f);
 
 	ImGui::Text("Last move stun value: %f", kb_struct_dt.stun);
-	ImGui::Text("Last move knockback value: %f", kb_struct_dt.knockback);
+	ImGui::Text("Last move displacement value: %f", kb_struct_dt.knockback);
 	ImGui::Text("Last move did %.3f damages", kb_struct_dt.health);
 	/*ImGui::SetWindowFontScale(0.79f);
 	ImGui::TextColored((ImVec4)ImColor::ImColor(147, 147, 147), "You can drag this window");

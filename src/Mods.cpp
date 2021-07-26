@@ -9,6 +9,8 @@
 #include "mods/StyleSwitchFX.hpp"
 #include "mods/PracticeMode.hpp"
 #include "mods/BulletStop.hpp"
+#include "mods/UIButton.hpp"
+
 Mods::Mods()
 {
     //m_mods.emplace_back(std::make_unique<SimpleMod>());
@@ -17,6 +19,7 @@ Mods::Mods()
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<BulletStop>());
+	m_mods.emplace_back(std::make_unique<UIButton>());
     //m_mods.emplace_back(std::make_unique<YourMod>());
 
 #ifdef DEVELOPER

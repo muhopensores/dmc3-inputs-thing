@@ -39,12 +39,8 @@ static __declspec(naked) void ss_wrap() {
 		ret
 	}
 }
-bool InertiaThings::install_inertia_patches_and_hooks(bool hook) {
-	if (hook) {
-		m_vel_set_hook = std::make_unique<FunctionHook>(plr_vel_set_fptr(), &plr_veloicty_set_sub_5A6210);
-		m_vel_set_zero_hook = std::make_unique<FunctionHook>(plr_vel_set_zero_fptr(), &plr_velocity_zero_sub_5A6230);
-		m_vel_lookup_hook = std::make_unique<FunctionHook>(plr_velocity_lookup_table_something(), &plr_velocity_lookup_table_something_sub_5A4CB0);
-		m_vel_skystar_hook = std::make_unique<FunctionHook>(plr_sky_star_velocity_fptr(), &ss_wrap);
+bool InertiaThings::install_inertia_patches_and_hooks(bool state) {
+	if (state) {
 
 		bool hooked =
 			m_vel_set_hook->create()
@@ -52,45 +48,29 @@ bool InertiaThings::install_inertia_patches_and_hooks(bool hook) {
 			&& m_vel_lookup_hook->create()
 			&& m_vel_skystar_hook->create();
 
-		if (!hooked) { return false; }
+		if (!hooked) { 
+			spdlog::error("Failed to create() inertia hooks\n");
+			return false;
+		}
 
-		m_ar_rave_patch[0] = Patch::create(0x005B8164, get_forward_angle_patch_bytes(), true);
-		m_ar_rave_patch[1] = Patch::create(0x005B82B4, get_forward_angle_patch_bytes(), true);
+		toggle_patches(state);
 
-		m_reb_rave_patches[0] = Patch::create(0x005AF954, get_forward_angle_patch_bytes(), true);
-		m_reb_rave_patches[1] = Patch::create(0x005AFAA4, get_forward_angle_patch_bytes(), true);
-		m_reb_rave_patches[2] = Patch::create(0x005AFBF4, get_forward_angle_patch_bytes(), true);
-		m_reb_rave_patches[3] = Patch::create(0x005AFD44, get_forward_angle_patch_bytes(), true);
-
-		m_guitar_rave_patches[0] = Patch::create(0x005BA194, get_forward_angle_patch_bytes(), true);
-		m_guitar_rave_patches[1] = Patch::create(0x005BA2C4, get_forward_angle_patch_bytes(), true);
-		m_guitar_rave_patches[2] = Patch::create(0x005BA1A3, get_air_guitar01_patch_bytes(), true);
-		m_guitar_rave_patches[3] = Patch::create(0x005BA2D3, get_air_guitar02_patch_bytes(), true);
-		m_hooked = true;
 		return true;
 	}
 	else {
-		if (!m_hooked) { return false; }
 
-		m_vel_set_hook.reset();
-		m_vel_set_zero_hook.reset();
-		m_vel_lookup_hook.reset();
-		m_vel_skystar_hook.reset();
+		bool unhooked = m_vel_set_hook->remove()
+			&& m_vel_set_zero_hook->remove()
+			&& m_vel_lookup_hook->remove()
+			&& m_vel_skystar_hook->remove();
 
-		m_ar_rave_patch[0]->disable();
-		m_ar_rave_patch[1]->disable();
+		if (!unhooked) { 
+			spdlog::error("Failed to remove() inertia hooks\n");
+			return false;
+		}
 
-		m_reb_rave_patches[0]->disable();
-		m_reb_rave_patches[1]->disable();
-		m_reb_rave_patches[2]->disable();
-		m_reb_rave_patches[3]->disable();
+		toggle_patches(state);
 
-		m_guitar_rave_patches[0]->disable();
-		m_guitar_rave_patches[1]->disable();
-		m_guitar_rave_patches[2]->disable();
-		m_guitar_rave_patches[3]->disable();
-
-		m_hooked = false;
 		return true;
 	}
 }
@@ -98,34 +78,23 @@ std::optional<std::string> InertiaThings::on_initialize() {
 	
 	g_it_ptr          = this;
 
-#if 0
-	m_vel_set_hook      = std::make_unique<FunctionHook>(plr_vel_set_fptr(), &plr_veloicty_set_sub_5A6210);
+	m_ar_rave_patch[0] = Patch::create(0x005B8164, get_forward_angle_patch_bytes(), false);
+	m_ar_rave_patch[1] = Patch::create(0x005B82B4, get_forward_angle_patch_bytes(), false);
+
+	m_reb_rave_patches[0] = Patch::create(0x005AF954, get_forward_angle_patch_bytes(), false);
+	m_reb_rave_patches[1] = Patch::create(0x005AFAA4, get_forward_angle_patch_bytes(), false);
+	m_reb_rave_patches[2] = Patch::create(0x005AFBF4, get_forward_angle_patch_bytes(), false);
+	m_reb_rave_patches[3] = Patch::create(0x005AFD44, get_forward_angle_patch_bytes(), false);
+
+	m_guitar_rave_patches[0] = Patch::create(0x005BA194, get_forward_angle_patch_bytes(), false);
+	m_guitar_rave_patches[1] = Patch::create(0x005BA2C4, get_forward_angle_patch_bytes(), false);
+	m_guitar_rave_patches[2] = Patch::create(0x005BA1A3, get_air_guitar01_patch_bytes(), false);
+	m_guitar_rave_patches[3] = Patch::create(0x005BA2D3, get_air_guitar02_patch_bytes(), false);
+
+	m_vel_set_hook = std::make_unique<FunctionHook>(plr_vel_set_fptr(), &plr_veloicty_set_sub_5A6210);
 	m_vel_set_zero_hook = std::make_unique<FunctionHook>(plr_vel_set_zero_fptr(), &plr_velocity_zero_sub_5A6230);
-	m_vel_lookup_hook   = std::make_unique<FunctionHook>(plr_velocity_lookup_table_something(), &plr_velocity_lookup_table_something_sub_5A4CB0);
-	m_vel_skystar_hook  = std::make_unique<FunctionHook>(plr_sky_star_velocity_fptr(), &ss_wrap);
-
-	bool hooked =
-		m_vel_set_hook->create()
-		&& m_vel_set_zero_hook->create()
-		&& m_vel_lookup_hook->create()
-		&& m_vel_skystar_hook->create();
-
-	if (!hooked) { return "Failed to hook inertia things"; }
-
-	m_ar_rave_patch[0]       = Patch::create(0x005B8164, get_forward_angle_patch_bytes(), true);
-	m_ar_rave_patch[1]       = Patch::create(0x005B82B4, get_forward_angle_patch_bytes(), true);
-	
-	m_reb_rave_patches[0]    = Patch::create(0x005AF954, get_forward_angle_patch_bytes(), true);
-	m_reb_rave_patches[1]    = Patch::create(0x005AFAA4, get_forward_angle_patch_bytes(), true);
-	m_reb_rave_patches[2]    = Patch::create(0x005AFBF4, get_forward_angle_patch_bytes(), true);
-	m_reb_rave_patches[3]    = Patch::create(0x005AFD44, get_forward_angle_patch_bytes(), true);
-
-	m_guitar_rave_patches[0] = Patch::create(0x005BA194, get_forward_angle_patch_bytes(), true);
-	m_guitar_rave_patches[1] = Patch::create(0x005BA2C4, get_forward_angle_patch_bytes(), true);
-	m_guitar_rave_patches[2] = Patch::create(0x005BA1A3, get_air_guitar01_patch_bytes(),  true);
-	m_guitar_rave_patches[3] = Patch::create(0x005BA2D3, get_air_guitar02_patch_bytes(),  true);
-
-#endif
+	m_vel_lookup_hook = std::make_unique<FunctionHook>(plr_velocity_lookup_table_something(), &plr_velocity_lookup_table_something_sub_5A4CB0);
+	m_vel_skystar_hook = std::make_unique<FunctionHook>(plr_sky_star_velocity_fptr(), &ss_wrap);
 
 	return Mod::on_initialize();
 }
@@ -210,6 +179,22 @@ void InertiaThings::on_draw_ui() {
 		ImGui::Text("loop_point: %f", dt2_atbl->loop_point);
 	}
 //#endif
+}
+
+void InertiaThings::toggle_patches(bool state)
+{
+	m_ar_rave_patch[0]->toggle(state);
+	m_ar_rave_patch[1]->toggle(state);
+
+	m_reb_rave_patches[0]->toggle(state);
+	m_reb_rave_patches[1]->toggle(state);
+	m_reb_rave_patches[2]->toggle(state);
+	m_reb_rave_patches[3]->toggle(state);
+
+	m_guitar_rave_patches[0]->toggle(state);
+	m_guitar_rave_patches[1]->toggle(state);
+	m_guitar_rave_patches[2]->toggle(state);
+	m_guitar_rave_patches[3]->toggle(state);
 }
 
 void InertiaThings::plr_overwrite_velocity(CPlDante * p_dante)

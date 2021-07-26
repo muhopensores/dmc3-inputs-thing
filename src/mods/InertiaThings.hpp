@@ -97,6 +97,8 @@ private:
 	bool m_stats = false;
 	const ModToggle::Ptr m_enable_inertia{ ModToggle::create(generate_name("Inertia")) };
 
+	void toggle_patches(bool state);
+
 	constexpr uintptr_t plr_vel_set_fptr() { return (uintptr_t)0x5A6210; };
 	constexpr uintptr_t plr_vel_set_zero_fptr() { return (uintptr_t)0x5A6230; };
 	constexpr uintptr_t plr_velocity_lookup_table_something() { return (uintptr_t)0x5A4CB0; };

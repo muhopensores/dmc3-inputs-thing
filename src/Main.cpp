@@ -33,7 +33,9 @@ void startup_thread() {
     wchar_t buffer[MAX_PATH]{ 0 };
 	wchar_t buffer_cwd[MAX_PATH]{ 0 };
 	if (GetCurrentDirectoryW(MAX_PATH, buffer_cwd) != 0) {
-		g_orig_dinput = LoadLibraryW((std::wstring{ buffer } +L"\\dinput8_original.dll").c_str());
+		if ((g_orig_dinput = LoadLibraryW((std::wstring{ buffer_cwd } +L"\\dinput8_original.dll").c_str())) == NULL) {
+			g_orig_dinput = LoadLibraryW(L"\\dinput8_original.dll");
+		}
 	}
     if (GetSystemDirectoryW(buffer, MAX_PATH) != 0) {
         // Load the original dinput8.dll

@@ -1,5 +1,7 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/UIButton.hpp
+    mods/UIButton.cpp
     mods/BulletStop.hpp
     mods/BulletStop.cpp
     mods/PracticeMode.hpp
