@@ -211,14 +211,8 @@ public:
         ImGui::Button(name.data());
 
         if (ImGui::IsItemHovered()) {
-            auto& keys = g_framework->get_keyboard_state();
-
-            for (auto k = 0; k < keys.size(); ++k) {
-                if (keys[k]) {
-                    m_value = is_erase_key(k) ? UNBOUND_KEY : k;
-                    break;
-                }
-            }
+            WPARAM k = g_framework->get_keyboard_state();
+			m_value = is_erase_key(k) ? UNBOUND_KEY : k;
 
             ImGui::SameLine();
             ImGui::Text("Press any key");
@@ -226,7 +220,7 @@ public:
         else {
             ImGui::SameLine();
 
-            if (m_value >= 0 && m_value <= 255) {
+            if (m_value >= 0) {
                 ImGui::Text("%i", m_value);
             }
             else {
@@ -240,11 +234,11 @@ public:
     }
 
     bool is_key_down() const {
-        if (m_value < 0 || m_value > 255) {
+        if (m_value < 1) {
             return false;
         }
 
-        return g_framework->get_keyboard_state()[(uint8_t)m_value] != 0;
+        return g_framework->get_keyboard_state() == m_value;
     }
 
     bool is_key_down_once() {
@@ -262,10 +256,10 @@ public:
         return false;
     }
 
-    bool is_erase_key(int k) const {
+    bool is_erase_key(WPARAM k) const {
         switch (k) {
-        case DIK_ESCAPE:
-        case DIK_BACKSPACE:
+        case VK_ESCAPE:
+        case VK_BACK:
             return true;
 
         default:
@@ -273,7 +267,7 @@ public:
         }
     }
 
-    static constexpr int32_t UNBOUND_KEY = -1;
+    static constexpr WPARAM UNBOUND_KEY = 0;
 
 protected:
     bool m_was_key_down{ false };

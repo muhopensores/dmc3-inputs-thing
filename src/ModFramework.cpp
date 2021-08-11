@@ -137,6 +137,9 @@ bool ModFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_p
     }
 
 	if (message == WM_KEYDOWN) {
+		
+		m_last_key = w_param;
+
 		if (w_param == VK_INSERT) {
 			m_draw_ui = !m_draw_ui;
 		}

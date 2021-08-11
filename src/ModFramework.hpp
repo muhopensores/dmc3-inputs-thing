@@ -29,7 +29,7 @@ public:
     }*/
 
     const auto& get_keyboard_state() const {
-        return m_last_keys;
+        return m_last_key;
     }
 
     /*const auto& get_globals() const {
@@ -78,7 +78,8 @@ private:
 	int m_mouse_y_dt;
 	std::chrono::high_resolution_clock::time_point m_last_mouse_move_timestamp;*/
 
-    std::array<uint8_t, 256> m_last_keys{ 0 };
+    //std::array<uint8_t, 256> m_last_keys{ 0 };
+	WPARAM m_last_key{ 0 };
     std::unique_ptr<D3D9Hook> m_d3d9_hook{};
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
     //std::unique_ptr<DInputHook> m_dinput_hook;
