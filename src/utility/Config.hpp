@@ -4,6 +4,9 @@
 #include <optional>
 #include <string>
 #include <type_traits>
+#include <sstream>  
+
+#include "sdk/Math.hpp"
 
 namespace utility {
     class Config {
@@ -63,6 +66,28 @@ namespace utility {
             return {};
         }
 
+		// get method for glm::vec4 types.
+		template <typename T>
+		std::optional<typename std::enable_if_t<std::is_same_v<T, glm::vec4>, T>> get(const std::string& key) const {
+			auto value = get(key);
+
+			if (!value) {
+				return {};
+			}
+			std::string wew = *value;
+			std::istringstream str (wew);
+			glm::vec4 retval;
+
+			for (int i = 0; i < 4; i++) {
+				float value;
+				str >> value;
+				retval[i] = value;
+
+			}
+
+			return retval;
+		}
+
         // get method for strings.
         std::optional<std::string> get(const std::string& key) const;
 
@@ -82,6 +107,15 @@ namespace utility {
                 set(key, "false");
             }
         }
+
+		// set method for glm::vec4 types.
+		template <typename T>
+		void set(const std::string& key, typename std::enable_if_t<std::is_same_v<T, glm::vec4>, T> value) {
+			char buffer[256];
+			sprintf(buffer, "%f %f %f %f", value.x, value.y, value.z, value.w);
+			buffer[256 - 1] = 0;
+			set(key, std::string{ buffer });
+		}
 
         // set method for strings.
         void set(const std::string& key, const std::string& value);

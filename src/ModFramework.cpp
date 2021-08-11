@@ -34,6 +34,7 @@ ModFramework::ModFramework()
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
 #endif
+	std::this_thread::sleep_for(std::chrono::seconds(1));
 
     m_d3d9_hook = std::make_unique<D3D9Hook>();
 
