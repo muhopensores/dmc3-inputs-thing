@@ -52,7 +52,7 @@ bool DInputHook::hook() {
     auto instance = (HINSTANCE)GetModuleHandle(nullptr);
     IDirectInput* dinput{ nullptr };
 
-    if (FAILED(dinput8_create(instance, DIRECTINPUT_VERSION, IID_IDirectInput8W, (LPVOID*)&dinput, nullptr))) {
+    if (FAILED(dinput8_create(instance, DIRECTINPUT_VERSION, IID_IDirectInput8A, (LPVOID*)&dinput, nullptr))) {
         spdlog::info("Failed to create IDirectInput.");
         return false;
     }
@@ -99,6 +99,15 @@ HRESULT DInputHook::get_device_state_internal(IDirectInputDevice* device, DWORD 
     }
 
     auto res = original_get_device_state(device, size, data);
+
+	LPDIJOYSTATE joy1 = (LPDIJOYSTATE)data;
+	int sign = (joy1->lZ != 0) | (joy1->lZ >> (sizeof(int) * CHAR_BIT - 1));
+	if (sign > 0) {
+		joy1->rgbButtons[10] = 0x80;
+	}
+	if (sign < 0) {
+		joy1->rgbButtons[11] = 0x80;
+	}
 
     // Feed keys back to the framework
     if (res == DI_OK && !m_is_ignoring_input && data != nullptr && size == 256) {

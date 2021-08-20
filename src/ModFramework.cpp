@@ -320,10 +320,10 @@ bool ModFramework::initialize() {
 
     // just do this instead of rehooking because there's no point.
     if (m_first_frame) {
-        //m_dinput_hook = std::make_unique<DInputHook>(m_wnd);
+        m_dinput_hook = std::make_unique<DInputHook>(m_wnd);
     }
     else {
-        //m_dinput_hook->set_window(m_wnd);
+        m_dinput_hook->set_window(m_wnd);
     }
 
     //spdlog::info("Creating render target");

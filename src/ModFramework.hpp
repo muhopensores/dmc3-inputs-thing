@@ -81,6 +81,7 @@ private:
     //std::array<uint8_t, 256> m_last_keys{ 0 };
 	WPARAM m_last_key{ 0 };
     std::unique_ptr<D3D9Hook> m_d3d9_hook{};
+	std::unique_ptr<DInputHook> m_dinput_hook;
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
     //std::unique_ptr<DInputHook> m_dinput_hook;
     std::shared_ptr<spdlog::logger> m_logger;
