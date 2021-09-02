@@ -263,6 +263,10 @@ void ModFramework::draw_about() {
 
     if (ImGui::CollapsingHeader("Licenses")) {
         ImGui::TreePush("Licenses");
+		
+		if (ImGui::CollapsingHeader("PromptFont")) {
+			ImGui::TextWrapped(license::prompt_font);
+		}
 
         if (ImGui::CollapsingHeader("glm")) {
             ImGui::TextWrapped(license::glm);
