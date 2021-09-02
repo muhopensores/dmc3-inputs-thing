@@ -1,5 +1,9 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/InputLog.hpp
+    mods/InputLog.cpp
+    mods/GamepadTriggersFix.hpp
+    mods/GamepadTriggersFix.cpp
     mods/UIButton.hpp
     mods/UIButton.cpp
     mods/BulletStop.hpp
@@ -66,6 +70,8 @@ set(UTILITY_SRC
 )
 
 set(FRAMEWORK_SRC
+    PromptFontGlyphs.hpp
+    PromptFontCompressed.cpp
     Sfx.cpp
     Mod.hpp
     Mods.hpp

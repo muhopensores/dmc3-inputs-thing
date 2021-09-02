@@ -2,6 +2,7 @@
 #include "ReClass.hpp"
 
 namespace Devil3SDK {
+	uint16_t get_buttons_pressed();
 	CPlDante* get_pl_dante();
 	CCameraCtrl* get_cam_ctrl();
 	const int  get_pl_dante_style();

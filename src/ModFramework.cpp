@@ -19,6 +19,9 @@
 #include "Config.hpp"
 #include "mods/UIButton.hpp"
 
+#include "PromptFontCompressed.cpp"
+#include "PromptFontGlyphs.hpp"
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 std::unique_ptr<ModFramework> g_framework{};
@@ -350,6 +353,11 @@ bool ModFramework::initialize() {
         return false;
     }
 
+	// NOTE(): this font stuff needs to be done on init
+	static const ImWchar icons_ranges[] = { 0x20, 0xFF, ICON_MIN_PF, ICON_MAX_PF, 0 }; // Will not be copied by AddFont* so keep in scope.
+	auto io = ImGui::GetIO();
+	io.Fonts->AddFontDefault();
+	m_prompt_font = io.Fonts->AddFontFromMemoryCompressedTTF(PFont_compressed_data, PFont_compressed_size, 32.0f, NULL, icons_ranges);
     ImGui::StyleColorsDark();
 
     if (m_first_frame) {

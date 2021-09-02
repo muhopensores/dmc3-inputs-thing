@@ -5,6 +5,8 @@
 #include "ModFramework.hpp"
 #include "DInputHook.hpp"
 
+#include "mods/GamepadTriggersFix.hpp"
+
 using namespace std;
 
 static DInputHook* g_dinput_hook{ nullptr };
@@ -100,14 +102,16 @@ HRESULT DInputHook::get_device_state_internal(IDirectInputDevice* device, DWORD 
 
     auto res = original_get_device_state(device, size, data);
 
-	LPDIJOYSTATE joy1 = (LPDIJOYSTATE)data;
+	GamepadTriggersFix::dinput_hook_callback((LPDIJOYSTATE)data);
+
+	/*LPDIJOYSTATE joy1 = (LPDIJOYSTATE)data;
 	int sign = (joy1->lZ != 0) | (joy1->lZ >> (sizeof(int) * CHAR_BIT - 1));
 	if (sign > 0) {
 		joy1->rgbButtons[10] = 0x80;
 	}
 	if (sign < 0) {
 		joy1->rgbButtons[11] = 0x80;
-	}
+	}*/
 
     // Feed keys back to the framework
     if (res == DI_OK && !m_is_ignoring_input && data != nullptr && size == 256) {

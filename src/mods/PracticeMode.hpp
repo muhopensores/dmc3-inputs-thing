@@ -26,15 +26,17 @@ public:
 private:
 	const ModToggle::Ptr m_overlay_enabled{ ModToggle::create(generate_name("PracticeModeOverlay")) };
 	const ModToggle::Ptr m_always_launch_tgl{ ModToggle::create(generate_name("AlwaysLaunch")) };
+	const ModToggle::Ptr m_stun_log{ ModToggle::create(generate_name("StunLog")) };
 	//const ModSlider::Ptr m_overlay_transparency{ ModSlider::create(generate_name("Overlay transparency"),0.0f, 1.0f, 0.5f) };
   
 	// function hook instance for our detour, convinient wrapper 
-  // around minhook
-  std::unique_ptr<FunctionHook> m_function_hook;
+	// around minhook
+    std::unique_ptr<FunctionHook> m_function_hook;
 
   ValueList m_options{
 	  *m_overlay_enabled,
 	  *m_always_launch_tgl,
+	  *m_stun_log,
 	  //*m_overlay_transparency
   };
 };

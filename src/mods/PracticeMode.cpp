@@ -116,21 +116,8 @@ void PracticeMode::on_frame() {
 	
 	if (!(m_always_launch_tgl->value())) { return; }
 	
-	/*bool ground = Devil3SDK::pl_dante_is_grounded();
-	if (ground) {
-		g_should_launch = true;
-	}
-	else {
-		g_should_launch = false;
-	}*/
-	//char ch_state = *g_char_state_ptr;
-	if (*g_char_state_ptr == 11 || *g_char_state_ptr == 13) {
-		g_should_launch = false;
-	}
-	else {
-		g_should_launch = true;
-	}
-
+	/*bool ground = Devil3SDK::pl_dante_is_grounded();*/
+	g_should_launch = !(*g_char_state_ptr == 11 || *g_char_state_ptr == 13);
 }
 // will show up in debug window, dump ImGui widgets you want here
 //void PracticeMode::on_draw_debug_ui() {}

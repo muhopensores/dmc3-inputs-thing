@@ -9,6 +9,7 @@ class Mods;
 #include "DInputHook.hpp"
 
 #include "utility/ChronoAlias.hpp"
+#include "imgui.h"
 
 // Global facilitator
 class ModFramework {
@@ -31,7 +32,9 @@ public:
     const auto& get_keyboard_state() const {
         return m_last_key;
     }
-
+	const auto& get_prompt_font() const {
+		return m_prompt_font;
+	}
     /*const auto& get_globals() const {
         return m_globals;
     }*/
@@ -71,7 +74,7 @@ private:
     HWND m_wnd{ 0 };
     HMODULE m_game_module{ 0 };
     uint8_t m_menu_key{ DIK_INSERT };
-	
+	ImFont* m_prompt_font{ 0 }; // NOTE(): needs to be set before imgui::begin calls
 	/*int m_mouse_x;
 	int m_mouse_y;
 	int m_mouse_x_dt;

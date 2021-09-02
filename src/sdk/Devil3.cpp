@@ -8,6 +8,11 @@ struct dante_anim_table {
 
 static dante_anim_table g_dante_table;
 
+uint16_t Devil3SDK::get_buttons_pressed() {
+	uint16_t* ptr = (uint16_t*)0x01C8EFF4;
+	return *ptr;
+}
+
 CPlDante* Devil3SDK::get_pl_dante() {
 	return (CPlDante*)0x1C8A600;
 }

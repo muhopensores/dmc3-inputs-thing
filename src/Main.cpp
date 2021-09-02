@@ -4,8 +4,9 @@
 
 #include "ModFramework.hpp"
 
-HMODULE g_dinput = 0;
-HMODULE g_styles = 0;
+HMODULE g_dinput  = 0;
+HMODULE g_styles  = 0;
+HMODULE g_dinputo = 0;
 
 extern "C" {
 	// DirectInput8Create wrapper for dinput8.dll
@@ -35,6 +36,7 @@ void startup_thread() {
 		if ((g_dinput = LoadLibraryW((std::wstring{ buffer } + L"\\dinput8.dll").c_str())) == NULL) {
 			failed();
 		}
+		g_dinputo = LoadLibraryA("\\dinput8_original.dll");
 		g_framework = std::make_unique<ModFramework>();
 	}
 	else {
@@ -53,6 +55,7 @@ BOOL APIENTRY DllMain(HANDLE handle, DWORD reason, LPVOID reserved) {
 	if (reason == DLL_PROCESS_DETACH) {
 		FreeLibrary(g_dinput);
 		FreeLibrary(g_styles);
+		FreeLibrary(g_dinputo);
 	}
 	return TRUE;
 }
