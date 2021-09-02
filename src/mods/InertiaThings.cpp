@@ -42,6 +42,11 @@ static __declspec(naked) void ss_wrap() {
 bool InertiaThings::install_inertia_patches_and_hooks(bool state) {
 	if (state) {
 
+		m_vel_set_hook = std::make_unique<FunctionHook>(plr_vel_set_fptr(), &plr_veloicty_set_sub_5A6210);
+		m_vel_set_zero_hook = std::make_unique<FunctionHook>(plr_vel_set_zero_fptr(), &plr_velocity_zero_sub_5A6230);
+		m_vel_lookup_hook = std::make_unique<FunctionHook>(plr_velocity_lookup_table_something(), &plr_velocity_lookup_table_something_sub_5A4CB0);
+		m_vel_skystar_hook = std::make_unique<FunctionHook>(plr_sky_star_velocity_fptr(), &ss_wrap);
+
 		bool hooked =
 			m_vel_set_hook->create()
 			&& m_vel_set_zero_hook->create()
@@ -59,15 +64,15 @@ bool InertiaThings::install_inertia_patches_and_hooks(bool state) {
 	}
 	else {
 
-		bool unhooked = m_vel_set_hook->remove()
-			&& m_vel_set_zero_hook->remove()
-			&& m_vel_lookup_hook->remove()
-			&& m_vel_skystar_hook->remove();
+		m_vel_set_hook.reset();
+		m_vel_set_zero_hook.reset();
+		m_vel_lookup_hook.reset();
+		m_vel_skystar_hook.reset();
 
-		if (!unhooked) { 
-			spdlog::error("Failed to remove() inertia hooks\n");
-			return false;
-		}
+		//if (!unhooked) { 
+			//spdlog::error("Failed to remove() inertia hooks\n");
+			//return false;
+		//}
 
 		toggle_patches(state);
 
@@ -90,11 +95,6 @@ std::optional<std::string> InertiaThings::on_initialize() {
 	m_guitar_rave_patches[1] = Patch::create(0x005BA2C4, get_forward_angle_patch_bytes(), false);
 	m_guitar_rave_patches[2] = Patch::create(0x005BA1A3, get_air_guitar01_patch_bytes(), false);
 	m_guitar_rave_patches[3] = Patch::create(0x005BA2D3, get_air_guitar02_patch_bytes(), false);
-
-	m_vel_set_hook = std::make_unique<FunctionHook>(plr_vel_set_fptr(), &plr_veloicty_set_sub_5A6210);
-	m_vel_set_zero_hook = std::make_unique<FunctionHook>(plr_vel_set_zero_fptr(), &plr_velocity_zero_sub_5A6230);
-	m_vel_lookup_hook = std::make_unique<FunctionHook>(plr_velocity_lookup_table_something(), &plr_velocity_lookup_table_something_sub_5A4CB0);
-	m_vel_skystar_hook = std::make_unique<FunctionHook>(plr_sky_star_velocity_fptr(), &ss_wrap);
 
 	return Mod::on_initialize();
 }
