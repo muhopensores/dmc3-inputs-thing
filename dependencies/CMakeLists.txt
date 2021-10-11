@@ -4,6 +4,14 @@ SET(GLM_TEST_ENABLE OFF CACHE BOOL "Build unit tests" FORCE)
 add_subdirectory(glm)
 
 project(minhook)
+set(CompilerFlags
+        CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_C_FLAGS_RELEASE
+        )
+foreach(CompilerFlag ${CompilerFlags})
+  string(REPLACE "/MD" "/MT" ${CompilerFlag} "${${CompilerFlag}}")
+endforeach()
+
 add_library(minhook STATIC
             minhook/src/buffer.c
             minhook/src/buffer.h

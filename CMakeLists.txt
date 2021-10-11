@@ -28,24 +28,28 @@ endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
 # string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 find_package(Git)
+if (Git_FOUND)
+  execute_process(COMMAND
+          "${GIT_EXECUTABLE}" log -1 --pretty=\"%h\"
+          WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+          OUTPUT_VARIABLE GIT_COMMIT_HASH
+          ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-execute_process(COMMAND
-        "${GIT_EXECUTABLE}" log -1 --pretty=\"%h\"
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE GIT_COMMIT_HASH
-        ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-execute_process(COMMAND
-        "${GIT_EXECUTABLE}" log -1 --date short --pretty=\"%ad\"
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-        OUTPUT_VARIABLE GIT_COMMITTER_DATE
-ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND
+          "${GIT_EXECUTABLE}" log -1 --date short --pretty=\"%ad\"
+          WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+          OUTPUT_VARIABLE GIT_COMMITTER_DATE
+  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(GIT_HASH ${GIT_COMMIT_HASH})
+  set(GIT_DATE ${GIT_COMMITTER_DATE})
+else()
+  set(GIT_HASH "install_git_exe_bro")
+  set(GIT_DATE "really")
+endif()
 
 set(LOG_FILENAME "${CMAKE_PROJECT_NAME}_framework_log.txt")
 set(LOG_ENTRY "${CMAKE_PROJECT_NAME} ModFramework entry")
 set(CONFIG_FILENAME "${CMAKE_PROJECT_NAME}_fw_config.txt")
-set(GIT_HASH ${GIT_COMMIT_HASH})
-set(GIT_DATE ${GIT_COMMITTER_DATE})
 
 configure_file(Config.hpp.in ${CMAKE_SOURCE_DIR}/src/Config.hpp @ONLY)
 add_compile_options(/W0)
