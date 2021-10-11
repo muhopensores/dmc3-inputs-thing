@@ -1,3 +1,4 @@
+#if 0
 #pragma once
 
 #include <memory>
@@ -52,3 +53,5 @@ private:
     HRESULT get_device_state_internal(IDirectInputDevice* device, DWORD size, LPVOID data);
     static HRESULT WINAPI get_device_state(IDirectInputDevice* device, DWORD size, LPVOID data);
 };
+
+#endif

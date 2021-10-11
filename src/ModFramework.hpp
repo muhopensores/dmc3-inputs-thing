@@ -6,7 +6,7 @@ class Mods;
 
 #include "D3D9Hook.hpp"
 #include "WindowsMessageHook.hpp"
-#include "DInputHook.hpp"
+//#include "DInputHook.hpp"
 
 #include "utility/ChronoAlias.hpp"
 #include "imgui.h"
@@ -73,7 +73,7 @@ private:
     
     HWND m_wnd{ 0 };
     HMODULE m_game_module{ 0 };
-    uint8_t m_menu_key{ DIK_INSERT };
+    //uint8_t m_menu_key{ DIK_INSERT };
 	ImFont* m_prompt_font{ 0 }; // NOTE(): needs to be set before imgui::begin calls
 	/*int m_mouse_x;
 	int m_mouse_y;
@@ -84,9 +84,8 @@ private:
     //std::array<uint8_t, 256> m_last_keys{ 0 };
 	WPARAM m_last_key{ 0 };
     std::unique_ptr<D3D9Hook> m_d3d9_hook{};
-	std::unique_ptr<DInputHook> m_dinput_hook;
+	//std::unique_ptr<DInputHook> m_dinput_hook; // TODO(): disabling this for now
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
-    //std::unique_ptr<DInputHook> m_dinput_hook;
     std::shared_ptr<spdlog::logger> m_logger;
     std::string m_error{ "" };
 

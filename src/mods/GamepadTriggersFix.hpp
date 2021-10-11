@@ -1,3 +1,4 @@
+#if 0
 #pragma once
 #include "Mod.hpp"
 #include "sdk/ReClass.hpp"
@@ -27,3 +28,4 @@ private:
   // around minhook
   // std::unique_ptr<FunctionHook> m_function_hook;
 };
+#endif

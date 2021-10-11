@@ -1,11 +1,9 @@
 #define INITGUID
-
+#if 0
 #include <spdlog/spdlog.h>
 
 #include "ModFramework.hpp"
 #include "DInputHook.hpp"
-
-#include "mods/GamepadTriggersFix.hpp"
 
 using namespace std;
 
@@ -124,3 +122,4 @@ HRESULT DInputHook::get_device_state_internal(IDirectInputDevice* device, DWORD 
 HRESULT WINAPI DInputHook::get_device_state(IDirectInputDevice* device, DWORD size, LPVOID data) {
     return g_dinput_hook->get_device_state_internal(device, size, data);
 }
+#endif

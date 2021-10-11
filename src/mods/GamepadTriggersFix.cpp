@@ -1,3 +1,5 @@
+// TODO(): fix this to yeet xinput plus
+#if 0
 #include "GamepadTriggersFix.hpp"
 
 static bool     g_di_swap_sticks  = false;
@@ -82,3 +84,4 @@ void GamepadTriggersFix::on_draw_ui() {
 		"there is no bounds checking done so, dont set those things"
 		" to values below zero or larger than 32 or you'll crash the game or something");
 }
+#endif

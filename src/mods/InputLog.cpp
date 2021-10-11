@@ -69,7 +69,7 @@ void get_button(uint16_t input, char buffer[]) {
 void InputLog::custom_imgui_window() {
 	if (!m_enabled->value()) { return; }
 
-	ImGui::Begin("Input log", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
+	ImGui::Begin("Input log (WIP)", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoBackground);
 	
 	ImGui::PushFont(g_framework->get_prompt_font());
 	size_t index = 0;

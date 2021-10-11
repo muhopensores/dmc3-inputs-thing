@@ -114,7 +114,7 @@ void PracticeMode::on_config_save(utility::Config &cfg) {
 // do something every frame
 void PracticeMode::on_frame() {
 	
-	if (!(m_always_launch_tgl->value())) { return; }
+	if (!(m_always_launch_tgl->value())) { g_should_launch = 0; return; }
 	
 	/*bool ground = Devil3SDK::pl_dante_is_grounded();*/
 	g_should_launch = !(*g_char_state_ptr == 11 || *g_char_state_ptr == 13);

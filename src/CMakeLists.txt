@@ -88,7 +88,7 @@ source_group("SDK" FILES ${SDK_SRC})
 source_group("Utility" FILES ${UTILITY_SRC})
 source_group("Framework" FILES ${FRAMEWORK_SRC})
 
-string(REGEX REPLACE "/W0" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+#string(REGEX REPLACE "/W0" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 add_library(${CMAKE_PROJECT_NAME} SHARED
             Main.cpp
@@ -105,10 +105,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlw
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME dinput8)
-
-set_property(TARGET ${CMAKE_PROJECT_NAME} PROPERTY
-  MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME super-cool-dmc3-mod-bundle-fun)
 
 if(DEVELOPER_MODE)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)

@@ -10,7 +10,7 @@
 #include "mods/PracticeMode.hpp"
 #include "mods/BulletStop.hpp"
 #include "mods/UIButton.hpp"
-#include "mods/GamepadTriggersFix.hpp"
+//#include "mods/GamepadTriggersFix.hpp" // seems broken
 #include "mods/InputLog.hpp"
 
 Mods::Mods()
@@ -22,8 +22,8 @@ Mods::Mods()
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
-	m_mods.emplace_back(std::make_unique<GamepadTriggersFix>());
 	m_mods.emplace_back(std::make_unique<InputLog>());
+	//m_mods.emplace_back(std::make_unique<GamepadTriggersFix>()); seems broken
     //m_mods.emplace_back(std::make_unique<YourMod>());
 
 #ifdef DEVELOPER
@@ -71,7 +71,7 @@ void Mods::on_draw_ui() const {
 
 void Mods::on_draw_custom_imgui_window() const {
 	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[3].get()); // epic footguns akimbo
-	InputLog* l = dynamic_cast<InputLog*>(m_mods[7].get()); // epic footguns akimbo part2
+	InputLog* l = dynamic_cast<InputLog*>(m_mods[6].get()); // epic footguns akimbo part2
 	p->custom_imgui_window();
 	l->custom_imgui_window();
 }

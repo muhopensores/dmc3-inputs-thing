@@ -4,10 +4,9 @@
 
 #include "ModFramework.hpp"
 
-HMODULE g_dinput  = 0;
-HMODULE g_styles  = 0;
-HMODULE g_dinputo = 0;
+//static HMODULE g_dinput;
 
+#if 0
 extern "C" {
 	// DirectInput8Create wrapper for dinput8.dll
 	__declspec(dllexport) HRESULT WINAPI direct_input8_create(HINSTANCE hinst, DWORD dw_version, const IID& riidltf, LPVOID* ppv_out, LPUNKNOWN punk_outer) {
@@ -17,9 +16,10 @@ extern "C" {
 		return ((decltype(DirectInput8Create)*)GetProcAddress(g_dinput, "DirectInput8Create"))(hinst, dw_version, riidltf, ppv_out, punk_outer);
 	}
 }
+#endif
 
 void failed() {
-	MessageBox(0, "ModFramework: Unable to load the original dinput8.dll. Please report this to the developer.", "ModFramework", 0);
+	MessageBox(0, "DMC3 ModFramework: Unable to load the original version.dll. Please report this to the developer.", "ModFramework", 0);
 	ExitProcess(0);
 }
 
@@ -30,6 +30,7 @@ void startup_thread() {
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
 #endif
+#if 0
 	wchar_t buffer[MAX_PATH]{ 0 };
 	if (GetSystemDirectoryW(buffer, MAX_PATH) != 0) {
 		// Load the original dinput8.dll
@@ -42,20 +43,20 @@ void startup_thread() {
 	else {
 		failed();
 	}
+#else
+	g_framework = std::make_unique<ModFramework>();
+#endif
 }
 
-BOOL APIENTRY DllMain(HANDLE handle, DWORD reason, LPVOID reserved) {
+BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
 	if (reason == DLL_PROCESS_ATTACH) {
-		g_styles = LoadLibraryA("./StyleSwitcher.dll"); // microsoft says it's unsafe
 #ifndef NDEBUG
 		MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 #endif
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startup_thread, nullptr, 0, nullptr);
 	}
 	if (reason == DLL_PROCESS_DETACH) {
-		FreeLibrary(g_dinput);
-		FreeLibrary(g_styles);
-		FreeLibrary(g_dinputo);
+		//FreeLibrary(version.dll);
 	}
 	return TRUE;
 }
