@@ -38,7 +38,9 @@ public:
     /*const auto& get_globals() const {
         return m_globals;
     }*/
-
+	const auto& get_d3d9_device() const {
+		return m_d3d9_hook->get_device();
+	}
     Address get_module() const {
         return m_game_module;
     }

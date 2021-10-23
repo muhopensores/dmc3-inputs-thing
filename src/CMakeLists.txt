@@ -1,5 +1,7 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/CameraHack.hpp
+    mods/CameraHack.cpp
     mods/InputLog.hpp
     mods/InputLog.cpp
     mods/GamepadTriggersFix.hpp
@@ -67,6 +69,8 @@ set(UTILITY_SRC
     utility/Scan.cpp
     utility/String.hpp
     utility/String.cpp
+    utility/FixedQueue.hpp
+    utility/FixedQueue.cpp
 )
 
 set(FRAMEWORK_SRC
@@ -101,7 +105,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
             ${FRAMEWORK_SRC}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 )
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 rpc)
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})

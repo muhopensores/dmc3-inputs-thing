@@ -103,7 +103,7 @@ private:
 	constexpr uintptr_t plr_vel_set_zero_fptr() { return (uintptr_t)0x5A6230; };
 	constexpr uintptr_t plr_velocity_lookup_table_something() { return (uintptr_t)0x5A4CB0; };
 	constexpr uintptr_t plr_sky_star_velocity_fptr() { return (uintptr_t)0x5A5EC0; };
-	constexpr uintptr_t plr_anim_lookup_fptr() { return (uintptr_t)0x41AC62; };
+	//constexpr uintptr_t plr_anim_lookup_fptr() { return (uintptr_t)0x41AC62; };
 	
 	const std::vector<int16_t> get_forward_angle_patch_bytes() { 
 	    // mov dx, [esi+284C]

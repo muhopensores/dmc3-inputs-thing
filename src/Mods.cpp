@@ -12,6 +12,7 @@
 #include "mods/UIButton.hpp"
 //#include "mods/GamepadTriggersFix.hpp" // seems broken
 #include "mods/InputLog.hpp"
+#include "mods/CameraHack.hpp"
 
 Mods::Mods()
 {
@@ -22,7 +23,9 @@ Mods::Mods()
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
-	m_mods.emplace_back(std::make_unique<InputLog>());
+	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
+
+    m_mods.emplace_back(std::make_unique<CameraHack>()); 
 	//m_mods.emplace_back(std::make_unique<GamepadTriggersFix>()); seems broken
     //m_mods.emplace_back(std::make_unique<YourMod>());
 

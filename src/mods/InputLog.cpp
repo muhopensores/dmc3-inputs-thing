@@ -3,6 +3,8 @@
 #include <queue>
 #include "../PromptFontGlyphs.hpp"
 
+#include "utility/FixedQueue.hpp"
+
 struct input_entry {
 	uint32_t m_frame;
 	uint16_t m_value;
@@ -18,20 +20,9 @@ struct input_entry {
 	}
 };
 
-struct FixedQueue {
 
-	size_t max_size = 20;
-	std::deque<input_entry> m_deq;
 
-	void push(uint16_t val, uint32_t frame) {
-		if (m_deq.size() == max_size) {
-			m_deq.pop_back();
-		}
-		m_deq.emplace_front(val, frame);
-	}
-};
-
-static FixedQueue input_fdeq;
+static utility::FixedQueue<input_entry> input_fdeq;
 
 uint16_t g_prev_input;
 uint32_t g_frame_count;
@@ -115,7 +106,7 @@ void InputLog::on_frame() {
 
 	if (input != g_prev_input && input) {
 		
-		input_fdeq.push(input,g_frame_count);
+		input_fdeq.push(input_entry{ input,g_frame_count });
 		g_frame_count = 0;
 	}
 	++g_frame_count;

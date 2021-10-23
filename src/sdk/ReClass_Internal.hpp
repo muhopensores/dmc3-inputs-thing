@@ -112,3 +112,42 @@ public:
 	float loop_point; //0x0078
 }; //Size: 0x007C
 static_assert(sizeof(CCharTableMgrPart) == 0x7C);
+
+class cCameraCtrl
+{
+public:
+	Vector3 upVector; //0x0004
+	float fltUnused0; //0x0010
+	float FOV; //0x0014
+	float roll_radians; //0x0018
+	Matrix4x4 transorms; //0x001C
+	Vector4 pos; //0x005C
+	Vector4 lookat; //0x006C
+	friend static int cCameraCtrl__something_idk_sub_416880(cCameraCtrl& this_ptr);
+	virtual void Function0();
+	virtual void Function1();
+	virtual void Function2();
+	virtual void Function3();
+	virtual void Function4();
+	virtual void Function5();
+	virtual void Function6();
+	virtual void Function7();
+	virtual void Function8();
+	virtual void Function9();
+}; //Size: 0x007C
+static_assert(sizeof(cCameraCtrl) == 0x7C);
+
+class cCameraPlayer
+{
+public:
+	char pad_0000[4]; //0x0000
+	Vector3 up; //0x0004
+	float fltUnused; //0x0010
+	float FOV; //0x0014
+	float roll_radians; //0x0018
+	Vector4 q1; //0x001C
+	Vector4 q2; //0x002C
+	Matrix4x4 N00000A9F; //0x003C
+	char pad_007C[1056]; //0x007C
+}; //Size: 0x049C
+static_assert(sizeof(cCameraPlayer) == 0x49C);

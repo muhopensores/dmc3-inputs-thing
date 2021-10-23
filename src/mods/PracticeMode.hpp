@@ -16,6 +16,7 @@ public:
 
 
   void custom_imgui_window();
+  void log_window();
   // on_frame() is called every frame regardless whether the gui shows up.
   void on_frame() override;
   // on_draw_ui() is called only when the gui shows up
