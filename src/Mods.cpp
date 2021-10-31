@@ -4,34 +4,42 @@
 
 //#inlcude "YourMod.hpp"
 #include "mods/SimpleMod.hpp"
-#include "mods/QuicksilverShader.hpp"
+/*#include "mods/QuicksilverShader.hpp"*/
 #include "mods/InertiaThings.hpp"
 #include "mods/StyleSwitchFX.hpp"
 #include "mods/PracticeMode.hpp"
 #include "mods/BulletStop.hpp"
 #include "mods/UIButton.hpp"
-//#include "mods/GamepadTriggersFix.hpp" // seems broken
+#include "mods/GamepadsFix.hpp" // seems broken
 #include "mods/InputLog.hpp"
-#include "mods/CameraHack.hpp"
+//#include "mods/CameraHack.hpp"
+
 
 Mods::Mods()
 {
     //m_mods.emplace_back(std::make_unique<SimpleMod>());
-	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
+    //m_mods.emplace_back(std::make_unique<YourMod>());
+#ifdef DEVELOPER
+    m_mods.emplace_back(std::make_unique<DeveloperTools>()); // you wish
+#endif
+}
+
+void Mods::load_time_critical_mods() {
+	
+	m_mods.emplace_back(std::make_unique<GamepadsFix>());
+	//m_mods.emplace_back(std::make_unique<YourMod>());
+}
+
+void Mods::load_mods() {
+	/*m_mods.emplace_back(std::make_unique<QuicksilverShader>());*/
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
-
-    m_mods.emplace_back(std::make_unique<CameraHack>()); 
-	//m_mods.emplace_back(std::make_unique<GamepadTriggersFix>()); seems broken
-    //m_mods.emplace_back(std::make_unique<YourMod>());
-
-#ifdef DEVELOPER
-    m_mods.emplace_back(std::make_unique<DeveloperTools>()); // you wish
-#endif
+	/*m_mods.emplace_back(std::make_unique<CameraHack>());*/
+	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
 
 std::optional<std::string> Mods::on_initialize() const {

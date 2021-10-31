@@ -1,5 +1,5 @@
 #include "CameraHack.hpp"
-#include "rpc/server.h"
+//#include "rpc/server.h"
 
 static uintptr_t    cam_jmp_ret = NULL;
 static CameraHack*  g_ch_ptr = nullptr;
@@ -33,15 +33,16 @@ static __declspec(naked) void camera_ctrl_thiscall_thing() {
 	}
 }
 
-struct pixel8 {
+/*struct pixel8 {
 	uint8_t a, r, g, b;
-};
+	MSGPACK_DEFINE_ARRAY(a, r, g, b)
+};*/
 
 
 
 // clang-format on
 static void rpc_thread(CameraHack* cam) {
-
+#if 0
 	rpc::server srv(42069);
 
 	srv.bind("get_pixels", [&](int width, int height) {
@@ -61,6 +62,7 @@ static void rpc_thread(CameraHack* cam) {
 
 		return data;
 	});
+#endif
 }
 std::optional<std::string> CameraHack::on_initialize() {
   // uintptr_t base = g_framework->get_module().as<uintptr_t>();
@@ -70,10 +72,10 @@ std::optional<std::string> CameraHack::on_initialize() {
 		return "Failed to initialize CameraHack";
 	}*/
 	
-	m_rpc_thread = std::thread(rpc_thread, this);
+	/*m_rpc_thread = std::thread(rpc_thread, this);
 	m_rpc_thread.detach();
 
-	g_ch_ptr = this;
+	g_ch_ptr = this;*/
 	m_cam_ctrl_update_hook = std::make_unique<FunctionHook>(cCameraCtrl_update_or_something(), &cCameraCtrl__something_idk_sub_416880);
 	
 	if (!m_cam_ctrl_update_hook->create()) {

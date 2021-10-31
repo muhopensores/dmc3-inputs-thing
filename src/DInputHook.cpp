@@ -1,9 +1,10 @@
-#define INITGUID
+
 #if 0
 #include <spdlog/spdlog.h>
 
 #include "ModFramework.hpp"
 #include "DInputHook.hpp"
+#include "mods/GamepadsFix.hpp"
 
 using namespace std;
 
@@ -100,7 +101,7 @@ HRESULT DInputHook::get_device_state_internal(IDirectInputDevice* device, DWORD 
 
     auto res = original_get_device_state(device, size, data);
 
-	GamepadTriggersFix::dinput_hook_callback((LPDIJOYSTATE)data);
+	GamepadsFix::dinput_hook_callback((LPDIJOYSTATE)data);
 
 	/*LPDIJOYSTATE joy1 = (LPDIJOYSTATE)data;
 	int sign = (joy1->lZ != 0) | (joy1->lZ >> (sizeof(int) * CHAR_BIT - 1));

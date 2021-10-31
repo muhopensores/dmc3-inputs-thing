@@ -51,8 +51,8 @@ void startup_thread() {
 BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
 	if (reason == DLL_PROCESS_ATTACH) {
 #ifndef NDEBUG
-		MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 #endif
+		MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startup_thread, nullptr, 0, nullptr);
 	}
 	if (reason == DLL_PROCESS_DETACH) {

@@ -6,8 +6,11 @@ class Mods;
 
 #include "D3D9Hook.hpp"
 #include "WindowsMessageHook.hpp"
-//#include "DInputHook.hpp"
-
+#if 0
+#ifdef DINPUT_HOOK
+#include "DInputHook.hpp"
+#endif
+#endif
 #include "utility/ChronoAlias.hpp"
 #include "imgui.h"
 
@@ -49,6 +52,10 @@ public:
         return m_game_data_initialized;
     }
 
+	const bool get_window_focus() const {
+		return m_window_focused;
+	}
+
     void on_frame();
     void on_reset();
     bool on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_param);
@@ -69,6 +76,7 @@ private:
     bool m_initialized{ false };
     bool m_draw_ui{ true };
 	bool m_draw_cursor{ true };
+	bool m_window_focused{ true };
     std::atomic<bool> m_game_data_initialized{ false };
 
     std::mutex m_input_mutex{};
@@ -86,7 +94,9 @@ private:
     //std::array<uint8_t, 256> m_last_keys{ 0 };
 	WPARAM m_last_key{ 0 };
     std::unique_ptr<D3D9Hook> m_d3d9_hook{};
+#ifdef DINPUT_HOOK
 	//std::unique_ptr<DInputHook> m_dinput_hook; // TODO(): disabling this for now
+#endif
     std::unique_ptr<WindowsMessageHook> m_windows_message_hook;
     std::shared_ptr<spdlog::logger> m_logger;
     std::string m_error{ "" };

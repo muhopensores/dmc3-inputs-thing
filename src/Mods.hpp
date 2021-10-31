@@ -7,6 +7,9 @@ public:
     Mods();
     virtual ~Mods() {}
 
+	void load_mods();
+	void load_time_critical_mods();
+
     std::optional<std::string> on_initialize() const;
 
     void on_frame() const;
@@ -18,6 +21,6 @@ public:
         return m_mods;
     }
 
-private:
     std::vector<std::unique_ptr<Mod>> m_mods;
+//private:
 };

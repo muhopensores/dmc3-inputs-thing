@@ -21,6 +21,7 @@
 
 #include "PromptFontCompressed.cpp"
 #include "PromptFontGlyphs.hpp"
+#include "utility/Thread.hpp"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -37,6 +38,26 @@ ModFramework::ModFramework()
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
 #endif
+	// WARNING(): i hacked on init for time critical stuff here
+	// TimeCritical init stuff
+	std::thread init_thread([this]() {
+		m_mods = std::make_unique<Mods>();
+		auto threads = utils::SuspendAllOtherThreads();
+		m_mods->load_time_critical_mods();
+		auto e = m_mods->on_initialize();
+
+		if (e) {
+			if (e->empty()) {
+				m_error = "An unknown error has occurred.";
+			}
+			else {
+				m_error = *e;
+			}
+		}
+		utils::ResumeThreads(threads);
+	});
+
+	init_thread.detach();
 	std::this_thread::sleep_for(std::chrono::seconds(1));
 
     m_d3d9_hook = std::make_unique<D3D9Hook>();
@@ -138,6 +159,15 @@ bool ModFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_p
     if (!m_initialized) {
         return true;
     }
+
+	if (message == WM_KILLFOCUS) {
+		printf("WINDOW Killfocus\n");
+		m_window_focused = false;
+	}
+	if (message == WM_SETFOCUS) {
+		printf("WINDOW Setfocus\n");
+		m_window_focused = true;
+	}
 
 	if (message == WM_KEYDOWN) {
 		
@@ -326,12 +356,16 @@ bool ModFramework::initialize() {
     };
 
     // just do this instead of rehooking because there's no point.
+#if 0
+#ifdef DINPUT_HOOK
     if (m_first_frame) {
-        //m_dinput_hook = std::make_unique<DInputHook>(m_wnd); // TODO(): temp disabled this 
+        m_dinput_hook = std::make_unique<DInputHook>(m_wnd); // TODO(): temp disabled this 
     }
     else {
-        //m_dinput_hook->set_window(m_wnd);
+        m_dinput_hook->set_window(m_wnd);
     }
+#endif
+#endif
 
     //spdlog::info("Creating render target");
 
@@ -371,8 +405,8 @@ bool ModFramework::initialize() {
 
         // Game specific initialization stuff
         std::thread init_thread([this]() {
-            m_mods = std::make_unique<Mods>();
-
+            //m_mods = std::make_unique<Mods>();
+			m_mods->load_mods();
             auto e = m_mods->on_initialize();
 
             if (e) {
