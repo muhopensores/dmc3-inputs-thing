@@ -18,6 +18,7 @@ public:
     // Called automatically by the destructor, but you can call it explicitly
     // if you need to remove the hook.
     bool remove();
+    bool disable();
 
     auto get_original() const {
         return m_original;

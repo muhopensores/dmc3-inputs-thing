@@ -1,5 +1,7 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/AudioStutterFix.hpp
+    mods/AudioStutterFix.cpp
     mods/CameraHack.hpp
     mods/CameraHack.cpp
     mods/InputLog.hpp

@@ -55,6 +55,16 @@ bool FunctionHook::create() {
     return true;
 }
 
+bool FunctionHook::disable() {
+	if (!m_original) {
+		return true;
+	}
+	if (MH_DisableHook((LPVOID)m_target) != MH_OK) {
+		return false;
+	}
+	return true;
+}
+
 bool FunctionHook::remove() {
     // Don't try to remove invalid hooks.
     if (m_original == 0) {

@@ -12,6 +12,7 @@
 #include "mods/UIButton.hpp"
 #include "mods/GamepadsFix.hpp" // seems broken
 #include "mods/InputLog.hpp"
+#include "mods/AudioStutterFix.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -32,6 +33,7 @@ void Mods::load_time_critical_mods() {
 
 void Mods::load_mods() {
 	/*m_mods.emplace_back(std::make_unique<QuicksilverShader>());*/
+	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
@@ -81,8 +83,8 @@ void Mods::on_draw_ui() const {
 }
 
 void Mods::on_draw_custom_imgui_window() const {
-	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[3].get()); // epic footguns akimbo
-	InputLog* l = dynamic_cast<InputLog*>(m_mods[6].get()); // epic footguns akimbo part2
+	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[4].get()); // epic footguns akimbo
+	InputLog* l = dynamic_cast<InputLog*>(m_mods[7].get()); // epic footguns akimbo part2
 	p->custom_imgui_window();
 	l->custom_imgui_window();
 }

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.1)
 
 project(DMC3_SRCNEXT)
 
+add_compile_options(/MT)
+
 include_directories(${CMAKE_SOURCE_DIR}/dependencies)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/imgui)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/minhook/include)
@@ -56,9 +58,10 @@ set(CONFIG_FILENAME "${CMAKE_PROJECT_NAME}_fw_config.txt")
 
 configure_file(Config.hpp.in ${CMAKE_SOURCE_DIR}/src/Config.hpp @ONLY)
 add_compile_options(/W0)
+#add_compile_options(/MT)
 
 # Statically compile runtime
-string(REGEX REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+#string(REGEX REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
 add_subdirectory(dependencies)
 add_subdirectory(src)
