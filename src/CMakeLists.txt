@@ -2,8 +2,8 @@ set(MODS_SRC
     mods/SimpleMod.hpp
     mods/AudioStutterFix.hpp
     mods/AudioStutterFix.cpp
-    mods/CameraHack.hpp
-    mods/CameraHack.cpp
+ #   mods/CameraHack.hpp
+ #   mods/CameraHack.cpp
     mods/InputLog.hpp
     mods/InputLog.cpp
     mods/GamepadsFix.hpp
@@ -110,7 +110,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
             ${FRAMEWORK_SRC}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})

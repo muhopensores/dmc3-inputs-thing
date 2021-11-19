@@ -1,6 +1,8 @@
 #pragma once
 #include "Mod.hpp"
 #include "sdk/ReClass.hpp"
+#include "utility/Patch.hpp"
+#if THREAD_AUDIO_FIX
 class AudioStutterFix : public Mod {
 public:
   AudioStutterFix() = default;
@@ -28,6 +30,11 @@ protected:
 	void __cdecl sub_404A70_internal(int a1, char a3, signed int a4, void* a5/*, void* a6*/);
 	int __cdecl SND_filename_prepare_sub_404950_internal(int a1, const char *filename);
 private:
+	bool m_enabled = false;
+
+	Patch* m_disable_sleep1;
+	Patch* m_disable_sleep2;
+
 	bool m_hooked1 = false;
 	bool m_hooked2 = false;
 	const ModToggle::Ptr m_audio_fix_enable{ ModToggle::create(generate_name("m_audio_fix_enable")) };
@@ -46,7 +53,22 @@ private:
 	char m_error_txt_buf[1024]{ 0 };
 
 	void toggle(bool enable);
-	
-  // function hook instance for our detour, convinient wrapper 
-  // around minhook
 };
+#else
+class AudioStutterFix : public Mod {
+public:
+	AudioStutterFix() = default;
+	// mod name string for config
+	std::string_view get_name() const override { return "AudioStutterFix"; }
+	// called by m_mods->init() you'd want to override this
+	std::optional<std::string> on_initialize() override;
+
+	void on_draw_ui() override;
+
+private:
+	bool m_enabled = false;
+
+	Patch* m_disable_sleep1;
+	Patch* m_disable_sleep2;
+};
+#endif

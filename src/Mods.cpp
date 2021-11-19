@@ -4,7 +4,7 @@
 
 //#inlcude "YourMod.hpp"
 #include "mods/SimpleMod.hpp"
-/*#include "mods/QuicksilverShader.hpp"*/
+#include "mods/QuicksilverShader.hpp"
 #include "mods/InertiaThings.hpp"
 #include "mods/StyleSwitchFX.hpp"
 #include "mods/PracticeMode.hpp"
@@ -32,7 +32,7 @@ void Mods::load_time_critical_mods() {
 }
 
 void Mods::load_mods() {
-	/*m_mods.emplace_back(std::make_unique<QuicksilverShader>());*/
+	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
 	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
@@ -40,7 +40,7 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
-	/*m_mods.emplace_back(std::make_unique<CameraHack>());*/
+	//m_mods.emplace_back(std::make_unique<CameraHack>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
 
@@ -83,8 +83,8 @@ void Mods::on_draw_ui() const {
 }
 
 void Mods::on_draw_custom_imgui_window() const {
-	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[4].get()); // epic footguns akimbo
-	InputLog* l = dynamic_cast<InputLog*>(m_mods[7].get()); // epic footguns akimbo part2
+	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[5].get()); // epic footguns akimbo
+	InputLog* l = dynamic_cast<InputLog*>(m_mods[8].get()); // epic footguns akimbo part2
 	p->custom_imgui_window();
 	l->custom_imgui_window();
 }

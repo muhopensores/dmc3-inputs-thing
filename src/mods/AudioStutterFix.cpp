@@ -1,4 +1,5 @@
 #include "AudioStutterFix.hpp"
+#if THREAD_AUDIO_FIX
 #include <deque>
 
 void snd_thread_func();
@@ -197,3 +198,50 @@ void AudioStutterFix::on_draw_ui() {
 		ImGui::TextColored(ImVec4(1.0f,0.0f,0.0f,1.0f),"Error: %s", m_error_txt_buf); 
 	};
 }
+#else
+
+std::optional<std::string> AudioStutterFix::on_initialize() {
+
+	// WARNING(): dirty hack to only init once here:
+	static bool init = false;
+	if (init) {
+		return Mod::on_initialize();
+	}
+	HMODULE snd = GetModuleHandle("snd.drv");
+	if (!snd) {
+		spdlog::info("[AudioStutterFix]: snd.drv is not found\n");
+		printf("[AudioStutterFix]: snd.drv is not found\n");
+		return Mod::on_initialize();
+	}
+	FARPROC snd_proc = GetProcAddress(snd, "IsSndDrvSexy");
+	if (!snd_proc) {
+		spdlog::info("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
+		printf("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
+	}
+	/* patching out: 
+	6A 64 - push 64
+	FF D7 - call edi
+	*/
+	std::vector<int16_t> bytes; bytes.resize(0x4);
+	std::fill(bytes.begin(), bytes.end(), 0x90);
+	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
+	m_disable_sleep2 = new Patch(0x00404998, bytes, true);
+
+	m_enabled = true;
+	return Mod::on_initialize();
+}
+
+void AudioStutterFix::on_draw_ui() {
+	if (!ImGui::CollapsingHeader(get_name().data())) {
+		return;
+	}
+	if (m_enabled) {
+		ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 0.8f), "Using custom SND.DRV");
+		ImGui::TextWrapped("Audio stutter patch is applied.");
+	}
+	else {
+		ImGui::TextColored(ImVec4(1.0f, 0.2f, 0.2f, 0.8f), "Not using custom SND.DRV");
+		ImGui::TextWrapped("Audio stutter patch is not applied.");
+	}
+}
+#endif

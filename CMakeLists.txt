@@ -9,7 +9,7 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/imgui)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/minhook/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/spdlog/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/glm)
-#include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
+include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
 
 include_directories($ENV{DXSDK_DIR}/Include)
