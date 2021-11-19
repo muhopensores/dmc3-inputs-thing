@@ -114,7 +114,7 @@ target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlw
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME super-cool-dmc3-mod-bundle-fun)
+set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME dinput8)
 target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DINPUT_HOOK)
 if(DEVELOPER_MODE)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)

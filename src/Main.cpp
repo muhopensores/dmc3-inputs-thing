@@ -4,16 +4,17 @@
 
 #include "ModFramework.hpp"
 
-//static HMODULE g_dinput;
+static HMODULE g_dinput;
+static HMODULE g_styleswitcher;
 
-#if 0
+#if 1
 extern "C" {
 	// DirectInput8Create wrapper for dinput8.dll
 	__declspec(dllexport) HRESULT WINAPI direct_input8_create(HINSTANCE hinst, DWORD dw_version, const IID& riidltf, LPVOID* ppv_out, LPUNKNOWN punk_outer) {
 		// This needs to be done because when we include dinput.h in DInputHook,
 		// It is a redefinition, so we assign an export by not using the original name
 		#pragma comment(linker, "/EXPORT:DirectInput8Create=_direct_input8_create@20")
-		return ((decltype(DirectInput8Create)*)GetProcAddress(g_dinput, "DirectInput8Create"))(hinst, dw_version, riidltf, ppv_out, punk_outer);
+		return ((decltype(direct_input8_create)*)GetProcAddress(g_dinput, "DirectInput8Create"))(hinst, dw_version, riidltf, ppv_out, punk_outer);
 	}
 }
 #endif
@@ -30,14 +31,13 @@ void startup_thread() {
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);
 #endif
-#if 0
+#if 1
 	wchar_t buffer[MAX_PATH]{ 0 };
 	if (GetSystemDirectoryW(buffer, MAX_PATH) != 0) {
 		// Load the original dinput8.dll
 		if ((g_dinput = LoadLibraryW((std::wstring{ buffer } + L"\\dinput8.dll").c_str())) == NULL) {
 			failed();
 		}
-		g_dinputo = LoadLibraryA("\\dinput8_original.dll");
 		g_framework = std::make_unique<ModFramework>();
 	}
 	else {
@@ -50,13 +50,14 @@ void startup_thread() {
 
 BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
 	if (reason == DLL_PROCESS_ATTACH) {
+		LoadLibrary("StyleSwitcher.dll");
 #ifndef NDEBUG
-#endif
 		MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
+#endif
 		CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startup_thread, nullptr, 0, nullptr);
 	}
 	if (reason == DLL_PROCESS_DETACH) {
-		//FreeLibrary(version.dll);
+		FreeLibrary(g_styleswitcher);
 	}
 	return TRUE;
 }
