@@ -217,6 +217,7 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	if (!snd_proc) {
 		spdlog::info("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
 		printf("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
+		return Mod::on_initialize();
 	}
 	/* patching out: 
 	6A 64 - push 64
@@ -227,7 +228,6 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
 	m_disable_sleep2 = new Patch(0x00404998, bytes, true);
 
-	m_enabled = true;
 	return Mod::on_initialize();
 }
 
