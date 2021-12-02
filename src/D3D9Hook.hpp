@@ -38,5 +38,5 @@ protected:
     std::unique_ptr<FunctionHook> m_reset_hook{};
 
     static HRESULT WINAPI end_scene(LPDIRECT3DDEVICE9 pDevice);
-    static HRESULT WINAPI reset(D3DPRESENT_PARAMETERS *pPresentationParameters);
+    static HRESULT WINAPI reset(LPDIRECT3DDEVICE9 pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters);
 };

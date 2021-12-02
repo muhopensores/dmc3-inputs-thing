@@ -34,8 +34,10 @@ __declspec(naked) void reset_hook(void) {
 		popad
 		pop eax
 		push eax
+
 		call dword ptr [ecx+0x40]
 		mov esi, eax
+
 		jmp dword ptr [reset_jmp_ret]
 	}
 }
@@ -44,16 +46,17 @@ bool D3D9Hook::hook() {
     spdlog::info("Hooking D3D9");
 
 	g_d3d9_hook = this;
+	IDirect3DDevice9** game = (IDirect3DDevice9**)0x0252F374;
+	IDirect3DDevice9* d3d9_device = *game; // TODO: base + offset?
+	m_device = d3d9_device;
 
-	IDirect3DDevice9* d3d9_device = (IDirect3DDevice9*)0x0252F374; // TODO: base + offset?
+	uintptr_t reset_fn     = (*(uintptr_t**)d3d9_device)[16];
+	uintptr_t end_scene_fn = (*(uintptr_t**)d3d9_device)[42];
 
-	uintptr_t reset_fn     = 0x006DC288;//(*(uintptr_t**)d3d9_device)[16];
-	uintptr_t end_scene_fn = 0x006DC483;//(*(uintptr_t**)d3d9_device)[42];
-	//*(char*)(end_scene_fn+5) = 0x90;
-    m_end_scene_hook = std::make_unique<FunctionHook>(end_scene_fn, (uintptr_t)&end_scene_hook);
-    m_reset_hook = std::make_unique<FunctionHook>(reset_fn, (uintptr_t)&reset_hook);
-	end_scene_jmp_ret = end_scene_fn + 6;
-	reset_jmp_ret = reset_fn + 5;
+    m_end_scene_hook = std::make_unique<FunctionHook>(end_scene_fn, (uintptr_t)&end_scene);//std::make_unique<FunctionHook>(end_scene_fn, (uintptr_t)&end_scene_hook);
+    m_reset_hook = std::make_unique<FunctionHook>(reset_fn, (uintptr_t)&reset);
+	//end_scene_jmp_ret = 0x006DC48E + 0x6;
+	//reset_jmp_ret = reset_fn + 5;
     m_hooked = m_end_scene_hook->create() && m_reset_hook->create();
 
     return m_hooked;
@@ -67,15 +70,15 @@ bool D3D9Hook::unhook() {
 HRESULT WINAPI D3D9Hook::end_scene(LPDIRECT3DDEVICE9 pDevice) {
 	auto d3d9 = g_d3d9_hook;
 
-	d3d9->m_device = pDevice;
+	//d3d9->m_device = pDevice;
 	if (d3d9->m_on_end_scene) {
 		d3d9->m_on_end_scene(*d3d9);
 	}
-	return S_OK;
-	/*auto end_scene_fn = 
+	//return S_OK;
+	auto end_scene_fn = 
 		d3d9->m_end_scene_hook->get_original<decltype(D3D9Hook::end_scene)>();
 	
-	return end_scene_fn(pDevice);*/
+	return end_scene_fn(pDevice);
 }
 #else
 static void end_scene_our(LPDIRECT3DDEVICE9 pDevice) {
@@ -89,7 +92,7 @@ static void end_scene_our(LPDIRECT3DDEVICE9 pDevice) {
 #endif
 
 
-HRESULT WINAPI D3D9Hook::reset(D3DPRESENT_PARAMETERS *pPresentationParameters) {
+HRESULT WINAPI D3D9Hook::reset(LPDIRECT3DDEVICE9 pDevice, D3DPRESENT_PARAMETERS *pPresentationParameters) {
 	
 	auto d3d9 = g_d3d9_hook;
 	
@@ -98,10 +101,9 @@ HRESULT WINAPI D3D9Hook::reset(D3DPRESENT_PARAMETERS *pPresentationParameters) {
 	if (d3d9->m_on_reset) {
 		d3d9->m_on_reset(*d3d9);
 	}
-
-	return S_OK;
-	/*auto reset_fn = 
+	//return S_OK;
+	auto reset_fn = 
 		d3d9->m_reset_hook->get_original<decltype(D3D9Hook::reset)>();
 
-	return reset_fn(pPresentationParameters);*/
+	return reset_fn(pDevice, pPresentationParameters);
 }

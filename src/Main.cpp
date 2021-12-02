@@ -27,6 +27,13 @@ void failed() {
 void startup_thread() {
 #ifndef NDEBUG
 	AllocConsole();
+	HANDLE handleOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD consoleMode;
+	GetConsoleMode( handleOut , &consoleMode);
+	consoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+	consoleMode |= DISABLE_NEWLINE_AUTO_RETURN;            
+	SetConsoleMode( handleOut , consoleMode );
+
 	freopen("CONIN$", "r", stdin);
 	freopen("CONOUT$", "w", stdout);
 	freopen("CONOUT$", "w", stderr);

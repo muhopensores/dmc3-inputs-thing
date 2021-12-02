@@ -223,6 +223,7 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	6A 64 - push 64
 	FF D7 - call edi
 	*/
+	m_enabled = true;
 	std::vector<int16_t> bytes; bytes.resize(0x4);
 	std::fill(bytes.begin(), bytes.end(), 0x90);
 	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
