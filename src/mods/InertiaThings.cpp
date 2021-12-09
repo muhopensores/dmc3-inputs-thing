@@ -217,7 +217,7 @@ void __fastcall InertiaThings::plr_veloicty_set_sub_5A6210_internal(CPlDante * p
 	_set_velocity orig_fn = (_set_velocity)m_vel_set_hook->get_original();
 	orig_fn(p_this, vel_m, vel_d);
 
-	if (!Devil3SDK::pl_dante_is_grounded()) { 
+	if (!Devil3SDK::pl_dante_is_grounded() || !Devil3SDK::pl_dante_is_air()) { 
 		chached_velocity = 0.0f;
 		return; 
 	}
@@ -225,6 +225,17 @@ void __fastcall InertiaThings::plr_veloicty_set_sub_5A6210_internal(CPlDante * p
 	auto predicate = [](MOTION_ID id) { 
 		return Devil3SDK::pl_dante_check_animation_id(id);
 	};
+
+	if (Devil3SDK::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
+		if (p_this->momentumMagnitude > 0.01f) {
+			chached_velocity = p_this->momentumMagnitude;
+		}
+		else {
+			chached_velocity = 0.0f;
+		}
+		return;
+	}
+
 	bool check = std::any_of(m_moves_should_conserve.begin(), m_moves_should_conserve.end(), predicate);
 	if (check) {
 		chached_velocity = p_this->momentumMagnitude;
@@ -236,7 +247,7 @@ void __fastcall InertiaThings::plr_veloicty_set_sub_5A6210_internal(CPlDante * p
 #endif
 
 	check = std::any_of(m_moves_dont_touch.begin(), m_moves_dont_touch.end(), predicate);
-	if (check) { return; }
+	if (check || Devil3SDK::pl_dante_is_air()) { return; }
 
 	/*auto predicate = [](MOTION_ID id) { return id == uass.current_anim;	};
 	const bool check = std::any_of(m_moves_dont_touch.begin(), m_moves_dont_touch.end(), predicate);
@@ -303,6 +314,15 @@ void __fastcall InertiaThings::plr_velocity_lookup_table_something_sub_5A4CB0_in
 #endif
 
 	auto predicate = [](MOTION_ID id) { return Devil3SDK::pl_dante_check_animation_id(id); };
+	if (Devil3SDK::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
+		if (chached_velocity > 0.01f) {
+			chached_velocity = p_this->momentumMagnitude;
+		}
+		else {
+			chached_velocity = 0.0f;
+		}
+		return;
+	}
 	const bool check = std::any_of(m_moves_should_conserve.begin(), m_moves_should_conserve.end(), predicate);
 	if (check) {
 		chached_velocity = cache_velocity;

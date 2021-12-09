@@ -10,6 +10,7 @@ namespace Devil3SDK {
 
 	const bool pl_dante_check_animation_id(uint16_t id);
 	const bool pl_dante_is_grounded();
+	const bool pl_dante_is_air();
 	
 	const bool pl_is_dt_check();
 

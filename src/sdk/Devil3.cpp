@@ -33,6 +33,10 @@ const char Devil3SDK::get_pl_state()
 	return *pl_state;
 }
 
+const bool Devil3SDK::pl_dante_is_air() {
+	static char* air = (char*)0x01C8A673;
+	return *air != 0;
+}
 const bool Devil3SDK::pl_dante_is_grounded() {
 #if 0
 	char state = get_pl_state();
