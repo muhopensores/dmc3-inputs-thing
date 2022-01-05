@@ -2,7 +2,6 @@
 #include <cassert>
 #include <cstring>
 #include <stdlib.h>
-
 // taken from dear imgui to use with binary to compressed c.
 
 static unsigned int stb_decompress_length(const unsigned char* input);
@@ -139,6 +138,13 @@ namespace utility {
 		unsigned char* buf_decompressed_data = (unsigned char*)malloc(buf_decompressed_size);
 		stb_decompress(buf_decompressed_data, (const unsigned char*)compressed_file_data, (unsigned int)compressed_file_size);
 		return buf_decompressed_data;
+	}
+	std::tuple<void*, const unsigned int> DecompressFileFromMemoryWithSize(const void* compressed_file_data, int compressed_file_size) 
+	{
+		const unsigned int buf_decompressed_size = stb_decompress_length((const unsigned char*)compressed_file_data);
+		unsigned char* buf_decompressed_data = (unsigned char*)malloc(buf_decompressed_size);
+		stb_decompress(buf_decompressed_data, (const unsigned char*)compressed_file_data, (unsigned int)compressed_file_size);
+		return std::make_tuple(buf_decompressed_data, buf_decompressed_size);
 	}
 
 	void* DecompressFileFromMemoryBase85(const char* compressed_file_data_base85)

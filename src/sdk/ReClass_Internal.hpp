@@ -22,18 +22,6 @@ public:
 }; //Size: 0x0040
 static_assert(sizeof(CDamageCalc) == 0x40);
 
-class CCameraCtrl
-{
-public:
-	char pad_0000[4]; //0x0000
-	Vector4 UpVector; //0x0004
-	Matrix3x3 N00000F96; //0x0014
-	char pad_0038[20]; //0x0038
-	Vector4 tgt; //0x004C
-	Vector4 pos; //0x005C
-}; //Size: 0x006C
-static_assert(sizeof(CCameraCtrl) == 0x6C);
-
 class CPlDante
 {
 public:
@@ -120,7 +108,7 @@ public:
 	float fltUnused0; //0x0010
 	float FOV; //0x0014
 	float roll_radians; //0x0018
-	Matrix4x4 transorms; //0x001C
+	Matrix4x4 transform; //0x001C
 	Vector4 pos; //0x005C
 	Vector4 lookat; //0x006C
 	friend static int cCameraCtrl__something_idk_sub_416880(cCameraCtrl& this_ptr);

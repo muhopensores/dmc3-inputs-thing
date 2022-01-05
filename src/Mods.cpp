@@ -13,6 +13,8 @@
 #include "mods/GamepadsFix.hpp" // seems broken
 #include "mods/InputLog.hpp"
 #include "mods/AudioStutterFix.hpp"
+#include "mods/PrintfDebugging.hpp"
+#include "mods/DebugDraw.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -26,7 +28,6 @@ Mods::Mods()
 }
 
 void Mods::load_time_critical_mods() {
-	
 	m_mods.emplace_back(std::make_unique<GamepadsFix>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
@@ -40,6 +41,11 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
+	m_mods.emplace_back(std::make_unique<DebugDraw>());
+#ifdef _DEBUG
+	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
+#endif // _DEBUG
+
 	//m_mods.emplace_back(std::make_unique<CameraHack>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
@@ -85,6 +91,8 @@ void Mods::on_draw_ui() const {
 void Mods::on_draw_custom_imgui_window() const {
 	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[5].get()); // epic footguns akimbo
 	InputLog* l = dynamic_cast<InputLog*>(m_mods[8].get()); // epic footguns akimbo part2
+	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[9].get()); // epic footguns akimbo part3
 	p->custom_imgui_window();
 	l->custom_imgui_window();
+	d->custom_imgui_window();
 }

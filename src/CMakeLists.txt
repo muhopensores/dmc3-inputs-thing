@@ -1,5 +1,9 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/DebugDraw.hpp
+    mods/DebugDraw.cpp
+    mods/PrintfDebugging.hpp
+    mods/PrintfDebugging.cpp
     mods/AudioStutterFix.hpp
     mods/AudioStutterFix.cpp
  #   mods/CameraHack.hpp
@@ -40,6 +44,7 @@ set(SDK_SRC
     sdk/Math.hpp
     sdk/Devil3.hpp
     sdk/Devil3.cpp
+    sdk/VoxObj.hpp
 )
 
 set(IMGUI_SRC
@@ -110,7 +115,8 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
             ${FRAMEWORK_SRC}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
+#target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2)
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})

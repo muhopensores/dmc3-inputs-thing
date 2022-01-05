@@ -209,14 +209,14 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	}
 	HMODULE snd = GetModuleHandle("snd.drv");
 	if (!snd) {
-		spdlog::info("[AudioStutterFix]: snd.drv is not found\n");
-		printf("[AudioStutterFix]: snd.drv is not found\n");
+		spdlog::info("[AudioStutterFix]: snd.drv not found\n");
+		printf("[AudioStutterFix]: snd.drv not found\n");
 		return Mod::on_initialize();
 	}
 	FARPROC snd_proc = GetProcAddress(snd, "IsSndDrvSexy");
 	if (!snd_proc) {
-		spdlog::info("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
-		printf("[AudioStutterFix]: snd.drv is not custom, skipping audio fixes.\n");
+		spdlog::info("[AudioStutterFix]: not using custom snd.drv, skipping audio fixes.\n");
+		printf("[AudioStutterFix]: not using custom snd.drv, skipping audio fixes.\n");
 		return Mod::on_initialize();
 	}
 	/* patching out: 

@@ -11,6 +11,7 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/spdlog/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/glm)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
+include_directories(${CMAKE_SOURCE_DIR}/dependencies/DebugDraw)
 
 include_directories($ENV{DXSDK_DIR}/Include)
 link_directories("$ENV{DXSDK_DIR}/Lib/x86")

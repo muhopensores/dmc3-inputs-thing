@@ -3,7 +3,7 @@ add_subdirectory(spdlog)
 SET(GLM_TEST_ENABLE OFF CACHE BOOL "Build unit tests" FORCE)
 add_subdirectory(glm)
 
-add_subdirectory(rpclib)
+#add_subdirectory(rpclib)
 
 project(minhook)
 set(CompilerFlags
@@ -38,3 +38,5 @@ add_library(imgui STATIC
             imgui/imgui.cpp)
 
 target_compile_definitions(imgui PUBLIC IMGUI_USER_CONFIG="../src/fw-imgui/imgui_imconfig.hpp")
+
+add_subdirectory(DebugDraw)

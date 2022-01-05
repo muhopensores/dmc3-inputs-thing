@@ -17,10 +17,14 @@ CPlDante* Devil3SDK::get_pl_dante() {
 	return (CPlDante*)0x1C8A600;
 }
 
-CCameraCtrl* Devil3SDK::get_cam_ctrl() {
-	return (CCameraCtrl*)0x01371978;
+cCameraCtrl* Devil3SDK::get_cam_ctrl() {
+	static cCameraCtrl** camera_ptr_ptr = (cCameraCtrl**)0x00B6BAAC;
+	return *camera_ptr_ptr;
 }
 
+Vector2f Devil3SDK::get_window_dimensions() {
+	return Vector2f{ *(float*)0x00832914, *(float*)0x00832918};
+}
 const int Devil3SDK::get_pl_dante_style()
 {
 	static int* current_style = (int*)0xB6B220;

@@ -4,9 +4,17 @@
 #include "../Sfx.cpp"
 
 static CPlDante* g_char_ptr = nullptr;
-static CCameraCtrl* g_cam_ptr = nullptr;
+static cCameraCtrl* g_cam_ptr = nullptr;
 
 #pragma comment(lib, "Winmm.lib")
+
+#define SND_CREATE_VOX(name) VoxObj* name()
+typedef SND_CREATE_VOX(snd_create_vox);
+SND_CREATE_VOX(SndCreateVoxStub) {
+	return nullptr;
+}
+static snd_create_vox* SndCreateVox_ = SndCreateVoxStub;
+#define SndCreateVox SndCreateVox_
 
 // TODO(): ability to change vfx that's played ?
 static int       g_vfx_id = 218;
@@ -97,19 +105,41 @@ static __declspec(naked) void detour() {
 #endif
 
 std::optional<std::string> StyleSwitchFX::on_initialize() {
-	//HMODULE base = g_framework->get_module().as<HMODULE>();
-	/*auto style_switch = utility::scan(0x1000, UINT_MAX - 0x1000 - 4, "8D 04 08 50 8B 4C 24 08 E8 ?? ?? ?? ?? 6A 01 8B 4C 24 04");
-	if (style_switch.has_value()) {
-		if (!install_hook_absolute(*style_switch, m_function_hook, &detour, &detour_jmpback, 8)) {
-			spdlog::error("[{}] failed to initialize", get_name());
-			return "Failed to initialize StyleSwitchFX";
-		}
-	}*/
+	// TODOOOOO(important): add soloud audio
 	g_char_ptr = (CPlDante*)0x1C8A600;
-	g_cam_ptr = (CCameraCtrl*)0x01371978;
+	//g_cam_ptr = (CCameraCtrl*)0x01371978;
 
 	m_sound_file_mem = utility::DecompressFileFromMemory(sfx_compressed_data,sfx_compressed_size);
+	
+	HMODULE snd = GetModuleHandle("snd.drv");
+	if (!snd) {
+		spdlog::info("[StyleSwitchFX]: snd.drv not found\n");
+		printf("[StyleSwitchFX]: snd.drv not found\n");
+		return Mod::on_initialize();
+	}
+	FARPROC snd_proc = GetProcAddress(snd, "IsSndDrvSexy");
+	if (!snd_proc) {
+		spdlog::info("[StyleSwitchFX]: not using custom snd.drv\n");
+		printf("[StyleSwitchFX]: not using custom snd.drv\n");
+		return Mod::on_initialize();
+	}
 
+	SndCreateVox = (snd_create_vox *)GetProcAddress(snd, "CreateVox");
+	if (!SndCreateVox) {
+		spdlog::info("[StyleSwitchFX]: could not GetProcAddress of CreateVox. this should not happen\n");
+		printf("[StyleSwitchFX]: could not GetProcAddress of CreateVox. this should not happen\n");
+		return Mod::on_initialize();
+	}
+	m_vox = SndCreateVox();
+	if (m_vox) {
+		spdlog::info("Got VoxObj from snd.drv! Nice\n");
+		printf("Got VoxObj from snd.drv! Nice\n");
+	}
+	auto decompressed= utility::DecompressFileFromMemoryWithSize(sfx_compressed_data,sfx_compressed_size);
+	m_sound_file_mem = std::get<0>(decompressed);
+	m_sound_file_mem_size = std::get<1>(decompressed);
+	m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
+	m_vox->set_volume = 1.0f;
   return Mod::on_initialize();
 }
 
@@ -138,7 +168,9 @@ void StyleSwitchFX::on_frame() {
 	if ((g_char_ptr->pad_0000) != 0x744D38) { return; }
 	if (*current_style != prev_style) {
 		play_effect(*current_style);
-		if (g_enable_sound) { play_sound(); }
+		if (g_enable_sound) { 
+			play_sound();
+		}
 		prev_style = *current_style;
 	}
 }
@@ -155,11 +187,14 @@ void StyleSwitchFX::on_draw_ui() {
 	ImGui::Checkbox("Enable style switch effects", &g_enable_mod);
 	
 	ImGui::Checkbox("Enable sound effect", &g_enable_sound);
-	/*if (g_enable_sound) {
-		ImGui::Combo("Sound effect",
-			&m_sound_effect,
-			"DMC4 Style Switch\0DMC4 Finger snap\0DMC3 Switch port effect\0\0");
-	}*/
+	if (m_vox != nullptr) {
+		static float snd_volume = 1.0f;
+		if (ImGui::DragFloat("Audio volume", &snd_volume,0.1f,0.0f,10.0f)) {
+			snd_volume = glm::clamp(snd_volume, 0.0f, 10.0f);
+			m_vox->set_volume(snd_volume);
+		}
+		ImGui::Checkbox("3D audio effects", &m_3d_audio);
+	}
 	
 	ImGui::Text("Customize style colors");
 
@@ -170,5 +205,28 @@ void StyleSwitchFX::on_draw_ui() {
 
 void StyleSwitchFX::play_sound()
 {
-	PlaySound((LPCSTR)m_sound_file_mem, NULL, SND_MEMORY | SND_ASYNC);
+	if (m_vox) {
+		cCameraCtrl* camera = Devil3SDK::get_cam_ctrl();
+		if (!camera || camera == (cCameraCtrl*)-1) { return; };
+		g_cam_ptr = camera;
+		//glm::vec3 at = g_char_ptr->Poistion - g_cam_ptr->pos;
+
+		// soloud 3d wants audio shit in meters and dmc3 is cm iirc
+		glm::vec3 cam = g_cam_ptr->pos * 0.01f;
+		glm::vec3 plr = g_char_ptr->Poistion * 0.01f;
+		glm::vec3 at = cam - plr;
+
+		/*
+		m_vox->set_listener3d(g_cam_ptr->pos.x, g_cam_ptr->pos.y, g_cam_ptr->pos.z,
+			at.x, at.y, at.z, g_cam_ptr->upVector.x, g_cam_ptr->upVector.y, g_cam_ptr->upVector.z);
+		m_vox->play3d(g_char_ptr->Poistion.x, g_char_ptr->Poistion.y, g_char_ptr->Poistion.z, m_vox->m_volume);
+		*/
+		m_vox->set_listener3d(cam.x, cam.y, cam.z,
+			at.x, at.y, at.z, g_cam_ptr->upVector.x, g_cam_ptr->upVector.y, g_cam_ptr->upVector.z);
+		m_vox->play3d(plr.x, plr.y, plr.z, m_vox->m_volume);
+
+	}
+	else {
+		PlaySound((LPCSTR)m_sound_file_mem, NULL, SND_MEMORY | SND_ASYNC);
+	}
 }
