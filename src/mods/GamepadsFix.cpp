@@ -16,6 +16,8 @@
 static GamepadsFix* g_gamepad_mod_inst_ptr;
 static std::vector<SDLGamepad*> g_gamepads;
 
+bool ifEmulatingXboxController;
+
 // TODO(): too tired not doing that anytime soon
 class PadVibeStuffStatic
 {
@@ -25,6 +27,12 @@ public:
 	uint32_t index_something; //0x0234
 }; //Size: 0x0238
 
+const std::vector<int16_t> default_controls_bytes() {
+  return {0xC7, 0x44, 0x24, 0x14, 0x02, 0x00, 0x00, 0x00,  // mov [esp+0x14], 00000002 // was 3
+		  0xC7, 0x44, 0x24, 0x18, 0x03, 0x00, 0x00, 0x00,  // mov [esp+0x18], 00000003 // was 1
+		  0xC7, 0x44, 0x24, 0x1C, 0x00, 0x00, 0x00, 0x00,  // mov [esp+0x1C], 00000000 // was 0
+		  0xC7, 0x44, 0x24, 0x20, 0x01, 0x00, 0x00, 0x00}; // mov [esp+0x20], 00000001 // was 2
+}
 
 std::optional<std::string> GamepadsFix::on_initialize() {
 	// WARNING(): dirty hack to only init once here:
@@ -75,10 +83,12 @@ void GamepadsFix::on_draw_ui() {
 	if (!ImGui::CollapsingHeader(get_name().data())) {
 		return;
 	}
+	ImGui::TextWrapped("Check the following checkbox if you are using or emulating an xbox controller. This will set the default controls to match PS4 so the following fixes are correctly applied. Press save config after, then reset the game.");
+	ImGui::Checkbox("Emulating or using an xbox controller", &ifEmulatingXboxController);
 
 	ImGui::TextWrapped("To get this working rename dmc3se.ini in the game root to something else and restart the game, this would replace dinput8 stuff with SDL2 for better gamepad support. Hooks need to be installed on launch so restart is required.");
 	ImGui::Text("Window focus: %d", g_framework->get_window_focus());
-	
+
 	ImGui::TextWrapped("You can select what controller to use below, keep in mind this is zero indexed. First controller - 0, second controller - 1 etc.");
 	if (ImGui::InputInt("Gamepad index: ", &m_gamepad_index, 1, 1)) {
 		m_gamepad_index = glm::clamp<int>(m_gamepad_index, 0, g_gamepads.size() - 1);
@@ -579,4 +589,14 @@ int _cdecl GamepadsFix::Dinput8Create_sub_404BB0(HWND hWnd)
 	spdlog::info("[Dinput8Create_sub_404BB0] swapping Dinput8Interface ptr inside game memory {}->", (uintptr_t)g_game_dinput8_ptr, (uintptr_t)&di8_dummy);
 	return DI_OK;
 }
+
+void GamepadsFix::on_config_load(const utility::Config& cfg) {
+  ifEmulatingXboxController = cfg.get<bool>("emulating_xbox_controller").value_or(false);
+  patchcontrols = Patch::create(0x00405D34, default_controls_bytes(), (ifEmulatingXboxController));
+};
+
+void GamepadsFix::on_config_save(utility::Config& cfg) {
+  cfg.set<bool>("emulating_xbox_controller", ifEmulatingXboxController);
+};
+
 #endif
