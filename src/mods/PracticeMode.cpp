@@ -90,7 +90,7 @@ void PracticeMode::custom_imgui_window() {
 	// address shows locked on enemy and also soft locked if you're standing near them but aren't locked on
 	uintptr_t lockedOnEnemyAddr = 0x01C8E1E4;
 	uintptr_t* lockedOnEnemyAddrPtr = *(uintptr_t**)lockedOnEnemyAddr;
-    if (lockedOnEnemyAddrPtr) {
+    if (lockedOnEnemyAddrPtr != 0 && lockedOnEnemyAddrPtr != (uintptr_t*)-1) {
 		ImGui::Text("Live stats test");
         float& enemyHealth = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x21B0);
         ImGui::InputFloat("Enemy HP", &enemyHealth);
@@ -98,6 +98,23 @@ void PracticeMode::custom_imgui_window() {
         ImGui::InputFloat("Enemy Stun", &enemyStun);
         float& enemyDisplacement = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x21B4);
         ImGui::InputFloat("Enemy Displacement", &enemyDisplacement);
+        ImGui::Spacing();
+        float& enemyMaxHealth = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x2184);
+        ImGui::InputFloat("Enemy Max HP", &enemyMaxHealth);
+        float& enemyMaxStun = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x218C);
+        ImGui::InputFloat("Enemy Max Stun", &enemyMaxStun);
+		float& enemyMaxDisplacement = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x2188);
+        ImGui::InputFloat("Enemy Max Displacement", &enemyMaxDisplacement);
+	} else {
+		ImGui::Text("Live stats test"); // yes i did this just because the ui updating was annoying me
+		float dummyFloat = 0.0f;
+        ImGui::InputFloat("Enemy HP", &dummyFloat);
+        ImGui::InputFloat("Enemy Stun", &dummyFloat);
+        ImGui::InputFloat("Enemy Displacement", &dummyFloat);
+        ImGui::Spacing();
+        ImGui::InputFloat("Enemy Max HP", &dummyFloat);
+        ImGui::InputFloat("Enemy Max Stun", &dummyFloat);
+        ImGui::InputFloat("Enemy Max Displacement", &dummyFloat);
 	}
 
 	ImGui::End();

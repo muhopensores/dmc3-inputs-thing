@@ -45,9 +45,9 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<DebugDraw>());
-	m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>());
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+	m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>());
 
 #ifdef _DEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
