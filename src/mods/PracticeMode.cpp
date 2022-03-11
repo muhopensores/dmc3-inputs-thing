@@ -86,6 +86,20 @@ void PracticeMode::custom_imgui_window() {
 	ImGui::TextColored((ImVec4)ImColor::ImColor(147, 147, 147), "You can drag this window");
 	ImGui::SetWindowFontScale(1.0f);*/
 	//ImGui::PopStyleColor();
+    
+	// address shows locked on enemy and also soft locked if you're standing near them but aren't locked on
+	uintptr_t lockedOnEnemyAddr = 0x01C8E1E4;
+	uintptr_t* lockedOnEnemyAddrPtr = *(uintptr_t**)lockedOnEnemyAddr;
+    if (lockedOnEnemyAddrPtr) {
+		ImGui::Text("Live stats test");
+        float& enemyHealth = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x21B0);
+        ImGui::InputFloat("Enemy HP", &enemyHealth);
+        float& enemyStun = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x21B8);
+        ImGui::InputFloat("Enemy Stun", &enemyStun);
+        float& enemyDisplacement = *(float*)((uintptr_t)lockedOnEnemyAddrPtr + 0x21B4);
+        ImGui::InputFloat("Enemy Displacement", &enemyDisplacement);
+	}
+
 	ImGui::End();
 }
 
@@ -131,3 +145,16 @@ void PracticeMode::on_draw_ui() {
 	m_overlay_enabled->draw("Enable practice overlay"); ImGui::SameLine();
 	ShowHelpMarker("Move overlay window into your prefered location by dragging");
 }
+
+/*
+01C8A600 = player base (static)
+
++8C rotation
+
+
+
+*/
+
+/*
+alternatively detour at 005710C0, it accesses hp for locked on enemy at +21B0
+*/
