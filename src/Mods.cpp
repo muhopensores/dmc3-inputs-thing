@@ -15,6 +15,9 @@
 #include "mods/AudioStutterFix.hpp"
 #include "mods/PrintfDebugging.hpp"
 #include "mods/DebugDraw.hpp"
+#include "mods/StyleSwitcherInfo.hpp"
+#include "mods/NoHeightRestriction.hpp"
+#include "mods/EnemySoulEaterNoInvis.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -42,6 +45,10 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<DebugDraw>());
+	m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>());
+	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
+	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+
 #ifdef _DEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG

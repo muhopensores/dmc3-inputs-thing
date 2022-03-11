@@ -348,7 +348,10 @@ void DebugDraw::custom_imgui_window()
 //void DebugDraw::on_draw_debug_ui() {}
 // will show up in main window, dump ImGui widgets you want here
 void DebugDraw::on_draw_ui() {
-	ImGui::Checkbox("debug draw hitspheres", &g_enabled);
-	/*ImGui::Checkbox("g_invert_forward", &g_invert_forward);
-	ImGui::InputFloat("fov", &g_fov, 0.01f);*/
+  if (ImGui::CollapsingHeader("Hitspheres")) {
+    ImGui::Checkbox("debug draw hitspheres", &g_enabled);
+    /*ImGui::Checkbox("g_invert_forward", &g_invert_forward);
+    ImGui::InputFloat("fov", &g_fov, 0.01f);*/
+  }
+
 }
