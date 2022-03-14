@@ -83,7 +83,7 @@ void GamepadsFix::on_draw_ui() {
 	if (!ImGui::CollapsingHeader(get_name().data())) {
 		return;
 	}
-	ImGui::TextWrapped("Check the following checkbox if you are using or emulating an xbox controller. This will set the default controls to match PS4 so the following fixes are correctly applied. Press save config after, then reset the game.");
+	ImGui::TextWrapped("Check the following checkbox if you are using or emulating an xbox controller. This will set the default controls to match PS4 so the following fixes are correctly applied. Press save config after, then reset the game. This might also be necessary for other setups but i cba to restart to check. If you have not renamed your ini, this will do nothing.");
 	ImGui::Checkbox("Emulating or using an xbox controller", &ifEmulatingXboxController);
 
 	ImGui::TextWrapped("To get this working rename dmc3se.ini in the game root to something else and restart the game, this would replace dinput8 stuff with SDL2 for better gamepad support. Hooks need to be installed on launch so restart is required.");
@@ -591,8 +591,11 @@ int _cdecl GamepadsFix::Dinput8Create_sub_404BB0(HWND hWnd)
 }
 
 void GamepadsFix::on_config_load(const utility::Config& cfg) {
-  ifEmulatingXboxController = cfg.get<bool>("emulating_xbox_controller").value_or(false);
+  bool dmc_ini_exists = _waccess_s(L"dmc3se.ini", 00) != ENOENT;
+  if (!dmc_ini_exists) {
+  ifEmulatingXboxController = cfg.get<bool>("emulating_xbox_controller").value_or(true);
   patchcontrols = Patch::create(0x00405D34, default_controls_bytes(), (ifEmulatingXboxController));
+  }
 };
 
 void GamepadsFix::on_config_save(utility::Config& cfg) {

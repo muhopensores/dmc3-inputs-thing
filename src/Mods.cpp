@@ -15,9 +15,9 @@
 #include "mods/AudioStutterFix.hpp"
 #include "mods/PrintfDebugging.hpp"
 #include "mods/DebugDraw.hpp"
-#include "mods/StyleSwitcherInfo.hpp"
 #include "mods/NoHeightRestriction.hpp"
 #include "mods/EnemySoulEaterNoInvis.hpp"
+//#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -47,7 +47,7 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<DebugDraw>());
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
-	m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>());
+	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the timeon boot, will replace
 
 #ifdef _DEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
