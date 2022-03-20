@@ -18,6 +18,7 @@
 #include "mods/NoHeightRestriction.hpp"
 #include "mods/EnemySoulEaterNoInvis.hpp"
 #include "mods/TurnSpeed.hpp"
+#include "mods/EnemyStepCooldown.hpp"
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
@@ -49,6 +50,8 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
 	m_mods.emplace_back(std::make_unique<TurnSpeed>());
+	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
+
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the timeon boot, will replace
 
 #ifdef _DEBUG

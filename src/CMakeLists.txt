@@ -33,6 +33,8 @@ set(MODS_SRC
     mods/EnemySoulEaterNoInvis.cpp 
     mods/TurnSpeed.hpp 
     mods/TurnSpeed.cpp 
+    mods/EnemyStepCooldown.hpp 
+    mods/EnemyStepCooldown.cpp 
 
 )
 
