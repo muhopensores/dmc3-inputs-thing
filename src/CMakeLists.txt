@@ -31,6 +31,8 @@ set(MODS_SRC
     mods/NoHeightRestriction.cpp 
     mods/EnemySoulEaterNoInvis.hpp 
     mods/EnemySoulEaterNoInvis.cpp 
+    mods/TurnSpeed.hpp 
+    mods/TurnSpeed.cpp 
 
 )
 
