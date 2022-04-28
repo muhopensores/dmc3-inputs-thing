@@ -35,6 +35,8 @@ set(MODS_SRC
     mods/TurnSpeed.cpp 
     mods/EnemyStepCooldown.hpp 
     mods/EnemyStepCooldown.cpp 
+    mods/EnemyStates.hpp 
+    mods/EnemyStates.cpp 
 
 )
 

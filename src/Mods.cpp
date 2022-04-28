@@ -19,6 +19,7 @@
 // #include "mods/EnemySoulEaterNoInvis.hpp" // affects other enemies, commented out until I find some enemy ID compare
 #include "mods/TurnSpeed.hpp"
 #include "mods/EnemyStepCooldown.hpp"
+#include "mods/EnemyStates.hpp"
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
@@ -51,6 +52,7 @@ void Mods::load_mods() {
 	// m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
 	m_mods.emplace_back(std::make_unique<TurnSpeed>());
 	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
+	m_mods.emplace_back(std::make_unique<EnemyStates>());
 
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
 
