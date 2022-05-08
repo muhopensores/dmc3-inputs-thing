@@ -1,5 +1,7 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/RgTimer.hpp
+    mods/RgTimer.cpp
     mods/DebugDraw.hpp
     mods/DebugDraw.cpp
     mods/PrintfDebugging.hpp

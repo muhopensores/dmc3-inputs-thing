@@ -25,44 +25,55 @@ static_assert(sizeof(CDamageCalc) == 0x40);
 class CPlDante
 {
 public:
-	//char pad_0000[4]; //0x0000
-	int pad_0000; //0x0000
-	uint8_t unkFlag; //0x0004
-	char pad_0005[11]; //0x0005
-	float workrate; //0x0010
-	float speed; //0x0014
-	char pad_0018[52]; //0x0018
-	Vector4 Poistion; //0x004C
-	Vector4 DeltaP; //0x005C
-	char pad_006C[4]; //0x006C
-	float weightMaybe; //0x0070
-	char pad_0074[24]; //0x0074
-	uint16_t angle; //0x008C
-	char pad_008E[110]; //0x008E
-	Vector4 somePosVector; //0x00FC
-	Vector4 somePrevPosVector; //0x010C
-	Matrix4x4 TransformMatrix; //0x011C
-	float momentumMagnitude; //0x015C cm
-	float momentumDelta; //0x0160
-	char pad_0164[9772]; //0x0164
-	uint32_t animationStatus01; //0x2790
-	char pad_2794[4]; //0x2794
-	uint32_t animationStatusPrev; //0x2798
-	char pad_279C[4]; //0x279C
-	uint8_t animationFlagUnk; //0x27A0
-	char pad_27A1[35]; //0x27A1
-	float someAnimationVelocityFloat; //0x27C4 walking when below 2
-	char pad_27C8[144]; //0x27C8
-	uint16_t stickDirection; //0x2858
-	uint16_t someOtherDirection; //0x285A
-	uint16_t anotherDirection; //0x285C
-	uint16_t idkDirection; //0x285E
-	uint16_t viewDirection; //0x2860
-	char pad_2862[546]; //0x2862
+    int pad_0000; //0x0000
+    uint8_t unkFlag; //0x0004
+    char pad_0005[11]; //0x0005
+    float workrate; //0x0010
+    float speed; //0x0014
+    char pad_0018[52]; //0x0018
+    Vector4 Poistion; //0x004C
+    Vector4 DeltaP; //0x005C
+    char pad_006C[4]; //0x006C
+    float weightMaybe; //0x0070
+    char pad_0074[24]; //0x0074
+    uint16_t angle; //0x008C
+    char pad_008E[110]; //0x008E
+    Vector4 somePosVector; //0x00FC
+    Vector4 somePrevPosVector; //0x010C
+    Matrix4x4 TransformMatrix; //0x011C
+    float momentumMagnitude; //0x015C cm
+    float momentumDelta; //0x0160
+    char pad_0164[9736]; //0x0164
+    class VelLookupTable *velocityLookupTable; //0x276C 0x276c zeroesUpMomentum_sub_5A4CB20
+    char pad_2770[32]; //0x2770
+    uint32_t animationStatus01; //0x2790
+    char pad_2794[4]; //0x2794
+    uint32_t animationStatusPrev; //0x2798
+    char pad_279C[4]; //0x279C
+    uint8_t animationFlagUnk; //0x27A0
+    char pad_27A1[35]; //0x27A1
+    float someAnimationVelocityFloat; //0x27C4 walking when below 2
+    char pad_27C8[144]; //0x27C8
+    uint16_t stickDirection; //0x2858
+    uint16_t someOtherDirection; //0x285A
+    uint16_t anotherDirection; //0x285C
+    uint16_t idkDirection; //0x285E
+    uint16_t viewDirection; //0x2860
+    char pad_2862[22]; //0x2862
+    uint8_t N00000AD3; //0x2878
+    uint8_t N00000FDA; //0x2879
+    char pad_287A[2]; //0x287A
+    uint32_t N00000AD4; //0x287C 0x287c edx at start zeroesUpMomentum_sub_5A4CB0ú
+    char pad_2880[5044]; //0x2880
+    uint32_t rg_meter_uint; //0x3C34
+    float rg_meter_flt; //0x3C38
+    float block_timer; //0x3C3C
+    float release_timer; //0x3C40
+    char pad_3C44[108]; //0x3C44
+}; //Size: 0x3CB0
+static_assert(sizeof(CPlDante) == 0x3CB0);
 
-	void plr_sky_star_velocity_sub_5A5EC0(uint16_t angle, float tweak);
-}; //Size: 0x2A84
-static_assert(sizeof(CPlDante) == 0x2A84);
+
 
 
 class devil3StaticPxShaderArray

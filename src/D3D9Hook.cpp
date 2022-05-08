@@ -45,9 +45,15 @@ __declspec(naked) void reset_hook(void) {
 bool D3D9Hook::hook() {
     spdlog::info("Hooking D3D9");
 
-	g_d3d9_hook = this;
-	IDirect3DDevice9** game = (IDirect3DDevice9**)0x0252F374;
-	IDirect3DDevice9* d3d9_device = *game; // TODO: base + offset?
+    g_d3d9_hook = this;
+    IDirect3DDevice9** game = (IDirect3DDevice9**)0x0252F374;
+    IDirect3DDevice9* d3d9_device = NULL;
+
+    do {
+        d3d9_device = *game; // TODO: base + offset?
+        Sleep(1);
+    } while (d3d9_device == NULL);
+
 	m_device = d3d9_device;
 
 	uintptr_t reset_fn     = (*(uintptr_t**)d3d9_device)[16];

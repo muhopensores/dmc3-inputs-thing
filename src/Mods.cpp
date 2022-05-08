@@ -15,6 +15,7 @@
 #include "mods/AudioStutterFix.hpp"
 #include "mods/PrintfDebugging.hpp"
 #include "mods/DebugDraw.hpp"
+#include "mods/RgTimer.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -45,7 +46,7 @@ void Mods::load_mods() {
 #ifdef _DEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG
-
+	m_mods.emplace_back(std::make_unique<RgTimer>());
 	//m_mods.emplace_back(std::make_unique<CameraHack>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
@@ -92,7 +93,9 @@ void Mods::on_draw_custom_imgui_window() const {
 	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[5].get()); // epic footguns akimbo
 	InputLog* l = dynamic_cast<InputLog*>(m_mods[8].get()); // epic footguns akimbo part2
 	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[9].get()); // epic footguns akimbo part3
+	RgTimer* t = dynamic_cast<RgTimer*>(m_mods[10].get());
 	p->custom_imgui_window();
 	l->custom_imgui_window();
 	d->custom_imgui_window();
+	t->custom_imgui_window();
 }

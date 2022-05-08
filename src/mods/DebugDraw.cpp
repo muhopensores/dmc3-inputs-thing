@@ -168,7 +168,7 @@ public:
 				continue;
 			}*/
 			//draw_list->AddLine(p1, p2, 0x34B1B0);
-			draw_list->AddLine(p1, p2, ImColor((int)(lines[v].line.r * 255.0f), (int)(lines[v].line.g * 255.0f), (int)(lines[v].line.b * 255.0f)), 0.06f);
+			draw_list->AddLine(p1, p2, ImColor((int)(lines[v].line.r * 255.0f), (int)(lines[v].line.g * 255.0f), (int)(lines[v].line.b * 255.0f), 64), 0.06f);
 			//draw_list->PathLineTo(p2);
 			/*verts[v].pos.x = lines[v].line.x;
 			verts[v].pos.y = lines[v].line.y;
@@ -267,7 +267,7 @@ static void draw_sphere_maybe(colisioni* col) {
 		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&forward, dd::colors::Crimson, col->radius_maybe, 8);
-
+#else
 		dd::circle(dd_context, *(ddVec3*)&col->pos02, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos02, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos02, *(ddVec3*)&forward, dd::colors::Crimson, col->radius_maybe, 8);
@@ -275,7 +275,7 @@ static void draw_sphere_maybe(colisioni* col) {
 		dd::circle(dd_context, *(ddVec3*)&col->pos03, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos03, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos03, *(ddVec3*)&forward, dd::colors::Crimson, col->radius_maybe, 8);
-#else
+
 	dd::sphere(dd_context, *(ddVec3*)&col->pos01, dd::colors::Coral, col->radius_maybe);
 	dd::sphere(dd_context, *(ddVec3*)&col->pos02, dd::colors::Chartreuse, col->radius_maybe);
 	dd::sphere(dd_context, *(ddVec3*)&col->pos03, dd::colors::Crimson, col->radius_maybe);

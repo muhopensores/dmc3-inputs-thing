@@ -139,7 +139,7 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
 	m_sound_file_mem = std::get<0>(decompressed);
 	m_sound_file_mem_size = std::get<1>(decompressed);
 	m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
-	m_vox->set_volume = 1.0f;
+	m_vox->set_volume(1.0f);
   return Mod::on_initialize();
 }
 
