@@ -27,6 +27,19 @@ set(MODS_SRC
     mods/QuicksilverShader.hpp
     mods/QuicksilverShader.cpp
     mods/SimpleMod.cpp
+    mods/StyleSwitcherInfo.hpp 
+    mods/StyleSwitcherInfo.cpp 
+    mods/NoHeightRestriction.hpp 
+    mods/NoHeightRestriction.cpp 
+    mods/EnemySoulEaterNoInvis.hpp 
+    mods/EnemySoulEaterNoInvis.cpp 
+    mods/TurnSpeed.hpp 
+    mods/TurnSpeed.cpp 
+    mods/EnemyStepCooldown.hpp 
+    mods/EnemyStepCooldown.cpp 
+    mods/EnemyStates.hpp 
+    mods/EnemyStates.cpp 
+
 )
 
 set(HOOKS_SRC

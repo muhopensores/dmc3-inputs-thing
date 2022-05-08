@@ -10,12 +10,18 @@
 #include "mods/PracticeMode.hpp"
 #include "mods/BulletStop.hpp"
 #include "mods/UIButton.hpp"
-#include "mods/GamepadsFix.hpp" // seems broken
+#include "mods/GamepadsFix.hpp"
 #include "mods/InputLog.hpp"
 #include "mods/AudioStutterFix.hpp"
 #include "mods/PrintfDebugging.hpp"
 #include "mods/DebugDraw.hpp"
 #include "mods/RgTimer.hpp"
+#include "mods/NoHeightRestriction.hpp"
+// #include "mods/EnemySoulEaterNoInvis.hpp" // affects other enemies, commented out until I find some enemy ID compare
+#include "mods/TurnSpeed.hpp"
+#include "mods/EnemyStepCooldown.hpp"
+#include "mods/EnemyStates.hpp"
+//#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
 
@@ -43,10 +49,17 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<UIButton>());
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
 	m_mods.emplace_back(std::make_unique<DebugDraw>());
+	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
+	// m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+	m_mods.emplace_back(std::make_unique<TurnSpeed>());
+	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
+	m_mods.emplace_back(std::make_unique<EnemyStates>());
+    m_mods.emplace_back(std::make_unique<RgTimer>());
+	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
+
 #ifdef _DEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG
-	m_mods.emplace_back(std::make_unique<RgTimer>());
 	//m_mods.emplace_back(std::make_unique<CameraHack>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }

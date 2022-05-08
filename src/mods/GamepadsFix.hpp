@@ -2,6 +2,7 @@
 #pragma once
 #include "Mod.hpp"
 #include "sdk/ReClass.hpp"
+#include "utility/Patch.hpp"
 
 class GamepadsFix : public Mod {
 public:
@@ -12,8 +13,8 @@ public:
   std::optional<std::string> on_initialize() override;
 
   // Override this things if you want to store values in the config file
-  //void on_config_load(const utility::Config& cfg) override;
-  //void on_config_save(utility::Config& cfg) override;
+  void on_config_load(const utility::Config& cfg) override;
+  void on_config_save(utility::Config& cfg) override;
 
   // on_frame() is called every frame regardless whether the gui shows up.
   void on_frame() override;
@@ -39,6 +40,8 @@ private:
 
   bool m_led_animation = false;
   //std::unique_ptr<FunctionHook> m_function_hook;
+
+  std::unique_ptr<Patch> patchcontrols;
 
 };
 #endif
