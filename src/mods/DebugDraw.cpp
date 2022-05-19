@@ -11,7 +11,7 @@
 #include <glm/gtc/matrix_transform.hpp> //we will use this to make tranformation matrices
 
 bool g_enabled = false;
-
+constexpr int STRIDE_MAGIC = 6;
 using Microsoft::WRL::ComPtr;
 
 std::optional<Vector2> world_to_screen(const Vector3f& world_pos) {
@@ -168,7 +168,18 @@ public:
 				continue;
 			}*/
 			//draw_list->AddLine(p1, p2, 0x34B1B0);
-			draw_list->AddLine(p1, p2, ImColor((int)(lines[v].line.r * 255.0f), (int)(lines[v].line.g * 255.0f), (int)(lines[v].line.b * 255.0f), 64), 0.06f);
+            draw_list->PathLineTo(p1);
+            if (v % STRIDE_MAGIC != 0) {
+                draw_list->PathLineTo(p2);
+            }
+            
+                draw_list->PathStroke(
+                    ImColor(
+                    (int)(lines[v].line.r * 255.0f),
+                        (int)(lines[v].line.g * 255.0f),
+                        (int)(lines[v].line.b * 255.0f), 64), 0, 0.5f);
+            
+			//draw_list->AddLine(p1, p2, ImColor((int)(lines[v].line.r * 255.0f), (int)(lines[v].line.g * 255.0f), (int)(lines[v].line.b * 255.0f), 64), 0.06f);
 			//draw_list->PathLineTo(p2);
 			/*verts[v].pos.x = lines[v].line.x;
 			verts[v].pos.y = lines[v].line.y;
@@ -264,9 +275,9 @@ static void draw_sphere_maybe(colisioni* col) {
 	auto up = Vector3f{ col->tranform01[1][0], col->tranform01[1][1], col->tranform01[1][2] };
 	auto forward = Vector3f{ col->tranform01[2][0], col->tranform01[2][1], col->tranform01[2][2] };
 #if 1
-		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8);
-		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8);
-		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&forward, dd::colors::Crimson, col->radius_maybe, 8);
+		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8, 32);
+		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8, 32);
+		dd::circle(dd_context, *(ddVec3*)&col->pos01, *(ddVec3*)&forward, dd::colors::Crimson, col->radius_maybe, 8, 32);
 #else
 		dd::circle(dd_context, *(ddVec3*)&col->pos02, *(ddVec3*)&up, dd::colors::Coral, col->radius_maybe, 8);
 		dd::circle(dd_context, *(ddVec3*)&col->pos02, *(ddVec3*)&right, dd::colors::Chartreuse, col->radius_maybe, 8);

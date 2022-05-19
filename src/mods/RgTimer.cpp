@@ -116,7 +116,7 @@ void RgTimer::on_frame() {
 		g_pl_block_timer = pl->block_timer;
         //printf("[%d] release_timer=%f\n", g_frame, pl->release_timer);
 #if 1
-		if(pl->block_timer < 1.0f) {
+		if(pl->block_timer < 0.9f) {
 			g_input_guard_frame = g_frame;
 		}
 
@@ -289,6 +289,9 @@ void RgTimer::custom_imgui_window() {
 
     ImGui::Text("rg_meter_float: %f", pl->rg_meter_flt);
     ImGui::Text("rg_meter_uint:  %d", pl->rg_meter_uint);
+    
+    ImGui::Text("pl_block_timer: %f", pl->block_timer);
+    ImGui::Text("pl_release_timer: %f", pl->release_timer);
 
     ImGui::Checkbox("Show releases on timeline", &g_show_releases);
 #if 0
