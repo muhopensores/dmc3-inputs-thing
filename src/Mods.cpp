@@ -44,17 +44,17 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
-	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one
+	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one [5]
 	m_mods.emplace_back(std::make_unique<BulletStop>());
 	m_mods.emplace_back(std::make_unique<UIButton>());
-	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one
-	m_mods.emplace_back(std::make_unique<DebugDraw>());
-	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
+	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
+	m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
+    m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
 	// m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+	m_mods.emplace_back(std::make_unique<EnemyStates>());
 	m_mods.emplace_back(std::make_unique<TurnSpeed>());
 	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
-	m_mods.emplace_back(std::make_unique<EnemyStates>());
-    m_mods.emplace_back(std::make_unique<RgTimer>());
+	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
 
 #ifdef _DEBUG
