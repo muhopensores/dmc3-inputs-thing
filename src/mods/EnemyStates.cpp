@@ -1,8 +1,9 @@
 #include "EnemyStates.hpp"
-#include "utility/FixedQueue.hpp"
 
 #if 1
 static bool hotkey_enabled = false;
+static int hotkey_save     = 0;
+static int hotkey_load     = 0;
 // static uint16_t g_prev_input;
 
 // player
@@ -197,7 +198,7 @@ void EnemyStates::on_frame() {
 		// uint8_t inputByte2 = *(uint8_t*)0x01C8EFF5;
 		// if (input != g_prev_input && input) {
 		// if (inputByte1 & 0x08 && inputByte1 && 0x00 && inputByte2 & 0x01) {
-		if (GetAsyncKeyState(VK_END)) { // load hotkey
+		if (GetAsyncKeyState(hotkey_load)) { // load hotkey
 			uintptr_t enemyBase = *(uintptr_t*)lockedOnEnemyPtr;
 			if (playerBase && playerBase != -1 && enemyBase && enemyBase != -1) {
 				float* playerPosXYZ[3];
@@ -242,7 +243,7 @@ void EnemyStates::on_frame() {
 			}
 		}
 		// if (inputByte1 & 0x08 && inputByte2 & 0x01) {
-        if (GetAsyncKeyState(VK_HOME)) { // save hotkey
+        if (GetAsyncKeyState(hotkey_save)) { // save hotkey
 			uintptr_t enemyBase = *(uintptr_t*)lockedOnEnemyPtr;
 			if (playerBase && playerBase != -1 && enemyBase && enemyBase != -1) {
 				float* playerPosXYZ[3];
@@ -292,12 +293,16 @@ void EnemyStates::on_frame() {
 
 // during load
 void EnemyStates::on_config_load(const utility::Config &cfg) {
-  hotkey_enabled = cfg.get<bool>("enemy_states_hotkey").value_or(false);
+  hotkey_enabled = cfg.get<bool>("enemy_states_hotkey_enable").value_or(false);
+  hotkey_save    = cfg.get<int>("enemy_states_save_hotkey").value_or(0x24); // HOME
+  hotkey_load    = cfg.get<int>("enemy_states_load_hotkey").value_or(0x23); // END
 }
 
 // during save
 void EnemyStates::on_config_save(utility::Config & cfg) {
-  cfg.set<bool>("enemy_states_hotkey", hotkey_enabled);
+  cfg.set<bool>("enemy_states_hotkey_enable", hotkey_enabled);
+  cfg.set<int>("enemy_states_save_hotkey", hotkey_save);
+  cfg.set<int>("enemy_states_load_hotkey", hotkey_load);
 }
 
 #endif
