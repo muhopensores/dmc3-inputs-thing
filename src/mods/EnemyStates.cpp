@@ -1,5 +1,10 @@
 #include "EnemyStates.hpp"
+#include "utility/FixedQueue.hpp"
+
 #if 1
+static bool hotkey_enabled = false;
+// static uint16_t g_prev_input;
+
 // player
 constexpr uintptr_t playerBase  = 0x01C8A600;
 static float savedPlayerPosXYZ[3]{0.0f, 0.0f, 0.0f};
@@ -45,6 +50,7 @@ std::optional<std::string> EnemyStates::on_initialize() {
 void EnemyStates::on_draw_ui() {
 	if (ImGui::CollapsingHeader("Enemy States")) {
 		uintptr_t enemyBase = *(uintptr_t*)lockedOnEnemyPtr;
+        ImGui::Checkbox("Save/Load Hotkey Enabled", &hotkey_enabled);
         if (ImGui::CollapsingHeader("Split player and enemy states")) {
 			if (playerBase && playerBase != -1) {
 				ImGui::Text("Player Info:");
@@ -96,7 +102,6 @@ void EnemyStates::on_draw_ui() {
 				enemyPosXYZ[2] = (float*)(enemyBase + 0x18);
 				int8_t* enemyMovePart = (int8_t*)(enemyBase + 0x2A44);
 				int* enemyGrounded    = (int*)(enemyBase + 0x2A70);
-				// was int8_t* enemyMovePart = (int8_t*)((uintptr_t)enemyBase + 0x2A44);
 				int* enemyMoveID = (int*)(enemyBase + 0x2A40);
 				int* enemyMoveID2 = (int*)(enemyBase + 0x2A58);
 				ImGui::InputFloat3("Enemy XYZ Position ##2", *enemyPosXYZ);
@@ -119,6 +124,7 @@ void EnemyStates::on_draw_ui() {
 				}
 			}
         }
+
 		if (playerBase && playerBase != -1 && enemyBase && enemyBase != -1) {
 			float* playerPosXYZ[3];
 			playerPosXYZ[0]	       = (float*)(playerBase + 0x4C);
@@ -183,22 +189,115 @@ void EnemyStates::on_draw_ui() {
 	}
 }
 
-// during load
-//void ModSample::on_config_load(const utility::Config &cfg) {
-//	for (IModValue& option : m_options) {
-//		option.config_load(cfg);
-//	}
-//}
-// during save
-//void ModSample::on_config_save(utility::Config &cfg) {
-//	for (IModValue& option : m_options) {
-//		option.config_save(cfg);
-//	}
-//}
 // do something every frame
-//void ModSample::on_frame() {}
+void EnemyStates::on_frame() {
+	if (hotkey_enabled) {
+		// uint16_t input = Devil3SDK::get_buttons_pressed();
+		// uint8_t inputByte1 = *(uint8_t*)0x01C8EFF4;
+		// uint8_t inputByte2 = *(uint8_t*)0x01C8EFF5;
+		// if (input != g_prev_input && input) {
+		// if (inputByte1 & 0x08 && inputByte1 && 0x00 && inputByte2 & 0x01) {
+		if (GetAsyncKeyState(VK_END)) { // load hotkey
+			uintptr_t enemyBase = *(uintptr_t*)lockedOnEnemyPtr;
+			if (playerBase && playerBase != -1 && enemyBase && enemyBase != -1) {
+				float* playerPosXYZ[3];
+				playerPosXYZ[0]	       = (float*)(playerBase + 0x4C);
+				playerPosXYZ[1]	       = (float*)(playerBase + 0x50);
+				playerPosXYZ[2]	       = (float*)(playerBase + 0x54);
+				float*  playerRotation = (float*)(playerBase + 0x8C);
+				int8_t* playerMovePart = (int8_t*)(playerBase + 0x2794);
+				int8_t* playerMoveID   = (int8_t*)(playerBase + 0x2914);
+				int8_t* playerIdk1     = (int8_t*)(playerBase + 0x278C);
+				int8_t* playerIdk2     = (int8_t*)(playerBase + 0x2790);
+				int*    playerIdk3     = (int*)(playerBase + 0x27DC);
+				int*    playerGrounded = (int*)(playerBase + 0x27E0);
+
+				float* enemyPosXYZ[3];
+				enemyPosXYZ[0]        = (float*)(enemyBase + 0x10);
+				enemyPosXYZ[1]        = (float*)(enemyBase + 0x14);
+				enemyPosXYZ[2]        = (float*)(enemyBase + 0x18);
+				int8_t* enemyMovePart = (int8_t*)(enemyBase + 0x2A44);
+				int* enemyGrounded    = (int*)(enemyBase + 0x2A70);
+				int* enemyMoveID      = (int*)(enemyBase + 0x2A40);
+				int* enemyMoveID2     = (int*)(enemyBase + 0x2A58);
+
+				*playerPosXYZ[0] = savedPlayerPosXYZ[0];
+				*playerPosXYZ[1] = savedPlayerPosXYZ[1];
+				*playerPosXYZ[2] = savedPlayerPosXYZ[2];
+				*playerRotation  = savedPlayerRotation;
+				*playerIdk1      = savedPlayerIdk1;
+				*playerIdk2      = savedPlayerIdk2;
+				*playerIdk3		 = savedPlayerIdk3;
+				*playerGrounded  = savedPlayerGrounded;
+				*playerMoveID    = savedPlayerMoveID;
+				*playerMovePart  = 0;
+
+				*enemyPosXYZ[0] = savedEnemyPosXYZ[0];
+				*enemyPosXYZ[1] = savedEnemyPosXYZ[1];
+				*enemyPosXYZ[2] = savedEnemyPosXYZ[2];
+				*enemyGrounded = savedEnemyGrounded;
+				*enemyMoveID = savedEnemyMoveID;
+				*enemyMoveID2 = savedEnemyMoveID2;
+				*enemyMovePart = 0;
+			}
+		}
+		// if (inputByte1 & 0x08 && inputByte2 & 0x01) {
+        if (GetAsyncKeyState(VK_HOME)) { // save hotkey
+			uintptr_t enemyBase = *(uintptr_t*)lockedOnEnemyPtr;
+			if (playerBase && playerBase != -1 && enemyBase && enemyBase != -1) {
+				float* playerPosXYZ[3];
+				playerPosXYZ[0]	       = (float*)(playerBase + 0x4C);
+				playerPosXYZ[1]	       = (float*)(playerBase + 0x50);
+				playerPosXYZ[2]	       = (float*)(playerBase + 0x54);
+				float*  playerRotation = (float*)(playerBase + 0x8C);
+				int8_t* playerMovePart = (int8_t*)(playerBase + 0x2794);
+				int8_t* playerMoveID   = (int8_t*)(playerBase + 0x2914);
+				int8_t* playerIdk1     = (int8_t*)(playerBase + 0x278C);
+				int8_t* playerIdk2     = (int8_t*)(playerBase + 0x2790);
+				int*    playerIdk3     = (int*)(playerBase + 0x27DC);
+				int*    playerGrounded = (int*)(playerBase + 0x27E0);
+
+				float* enemyPosXYZ[3];
+				enemyPosXYZ[0]        = (float*)(enemyBase + 0x10);
+				enemyPosXYZ[1]        = (float*)(enemyBase + 0x14);
+				enemyPosXYZ[2]        = (float*)(enemyBase + 0x18);
+				int8_t* enemyMovePart = (int8_t*)(enemyBase + 0x2A44);
+				int* enemyGrounded    = (int*)(enemyBase + 0x2A70);
+				int* enemyMoveID      = (int*)(enemyBase + 0x2A40);
+				int* enemyMoveID2     = (int*)(enemyBase + 0x2A58);
+
+				savedPlayerPosXYZ[0] = *playerPosXYZ[0];
+				savedPlayerPosXYZ[1] = *playerPosXYZ[1];
+				savedPlayerPosXYZ[2] = *playerPosXYZ[2];
+				savedPlayerRotation  = *playerRotation;
+				savedPlayerIdk1      = *playerIdk1;
+				savedPlayerIdk2      = *playerIdk2;
+				savedPlayerIdk3      = *playerIdk3;
+				savedPlayerGrounded  = *playerGrounded;
+				savedPlayerMoveID    = *playerMoveID;
+
+				savedEnemyPosXYZ[0] = *enemyPosXYZ[0];
+				savedEnemyPosXYZ[1] = *enemyPosXYZ[1];
+				savedEnemyPosXYZ[2] = *enemyPosXYZ[2];
+				savedEnemyGrounded  = *enemyGrounded;
+				savedEnemyMoveID    = *enemyMoveID;
+			}
+		}
+		// g_prev_input = input;
+	}
+}
 // will show up in debug window, dump ImGui widgets you want here
 //void ModSample::on_draw_debug_ui() {}
 // will show up in main window, dump ImGui widgets you want here
+
+// during load
+void EnemyStates::on_config_load(const utility::Config &cfg) {
+  hotkey_enabled = cfg.get<bool>("enemy_states_hotkey").value_or(false);
+}
+
+// during save
+void EnemyStates::on_config_save(utility::Config & cfg) {
+  cfg.set<bool>("enemy_states_hotkey", hotkey_enabled);
+}
 
 #endif
