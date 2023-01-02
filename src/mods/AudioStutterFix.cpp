@@ -199,6 +199,34 @@ void AudioStutterFix::on_draw_ui() {
 	};
 }
 #else
+#include "sdk/VoxObj.hpp"
+
+struct Devil3BgmChannels {
+	// NOTE(): initialized in dmc3se.exe WinMain
+	VoxObj* channel[4];
+	size_t num_channels;
+};
+Devil3BgmChannels* game_snd_channels{ nullptr };
+FunctionHook* cCustomize_hack{ nullptr }; // cCustomize screen doesnt stop the bgm for some reason
+uintptr_t c_cusomize_return = 0x00444190; // dmc3se.exe+44190 - 85 F6                 - test esi,esi
+
+static void stop_sound() {
+	if (!game_snd_channels) { return; }
+	/*for (size_t i = 0; i < game_snd_channels->num_channels; i++) {
+		
+	}*/
+	game_snd_channels->channel[0]->pause();
+}
+
+__declspec(naked) void c_cusomize_detour() {
+	__asm {
+		pushad
+		call stop_sound
+		popad
+		push 0000017Ah
+		jmp DWORD PTR [c_cusomize_return]
+	}
+}
 
 std::optional<std::string> AudioStutterFix::on_initialize() {
 
@@ -228,6 +256,10 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	std::fill(bytes.begin(), bytes.end(), 0x90);
 	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
 	m_disable_sleep2 = new Patch(0x00404998, bytes, true);
+
+	game_snd_channels = (Devil3BgmChannels*)0x0832DBC;
+	cCustomize_hack = new FunctionHook(0x0044418B, &c_cusomize_detour);
+	cCustomize_hack->create();
 
 	return Mod::on_initialize();
 }
