@@ -6,7 +6,7 @@
 using namespace std;
 
 
-bool g_isMinHookInitialized{ false };
+bool g_is_min_hook_initialized{ false };
 
 FunctionHook::FunctionHook(Address target, Address destination)
     : m_target{ 0 },
@@ -16,8 +16,8 @@ FunctionHook::FunctionHook(Address target, Address destination)
     spdlog::info("Attempting to hook {:p}->{:p}", target.ptr(), destination.ptr());
 
     // Initialize MinHook if it hasn't been already.
-    if (!g_isMinHookInitialized && MH_Initialize() == MH_OK) {
-        g_isMinHookInitialized = true;
+    if (!g_is_min_hook_initialized && MH_Initialize() == MH_OK) {
+        g_is_min_hook_initialized = true;
     }
 
     // Create the hook. Call create afterwards to prevent race conditions accessing FunctionHook before it leaves its constructor.
@@ -63,6 +63,10 @@ bool FunctionHook::disable() {
 		return false;
 	}
 	return true;
+}
+
+void FunctionHook::set_mh_skip_locks(BOOL b) {
+    MH_SetSkipLocking(b);
 }
 
 bool FunctionHook::remove() {

@@ -40,8 +40,10 @@ ModFramework::ModFramework()
 #endif
 	// WARNING(): i hacked on init for time critical stuff here
 	// TimeCritical init stuff
+#if 0
 	std::thread init_thread([this]() {
 		m_mods = std::make_unique<Mods>();
+        FunctionHook::set_mh_skip_locks(TRUE);
 		auto threads = utils::SuspendAllOtherThreads();
 		m_mods->load_time_critical_mods();
 		auto e = m_mods->on_initialize();
@@ -55,10 +57,29 @@ ModFramework::ModFramework()
 			}
 		}
 		utils::ResumeThreads(threads);
+        FunctionHook::set_mh_skip_locks(FALSE);
 	});
 
 	init_thread.detach();
-	std::this_thread::sleep_for(std::chrono::seconds(1));
+#else
+    m_mods = std::make_unique<Mods>();
+    FunctionHook::set_mh_skip_locks(TRUE);
+    auto threads = utils::SuspendAllOtherThreads();
+    m_mods->load_time_critical_mods();
+    auto e = m_mods->on_initialize();
+
+    if (e) {
+        if (e->empty()) {
+            m_error = "An unknown error has occurred.";
+        }
+        else {
+            m_error = *e;
+        }
+    }
+    utils::ResumeThreads(threads);
+    FunctionHook::set_mh_skip_locks(FALSE);
+#endif
+	/*std::this_thread::sleep_for(std::chrono::seconds(1));*/
 
     m_d3d9_hook = std::make_unique<D3D9Hook>();
 
