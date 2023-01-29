@@ -5,6 +5,7 @@
 #include <string>
 
 #include <Windows.h>
+#include "Address.hpp"
 
 namespace utility {
     //
@@ -12,7 +13,8 @@ namespace utility {
     //
     std::optional<size_t> get_module_size(const std::string& module);
     std::optional<size_t> get_module_size(HMODULE module);
-
+    std::optional<HMODULE> get_module_within(Address address);
+    std::optional<std::string> get_module_path(HMODULE module);
     std::optional<std::string> get_module_directory(HMODULE module);
 
     // Note: This function doesn't validate the dll's headers so make sure you've

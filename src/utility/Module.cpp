@@ -33,7 +33,7 @@ namespace utility {
         return ntHeaders->OptionalHeader.SizeOfImage;
     }
 
-    std::optional<std::string> get_module_directory(HMODULE module) {
+    optional<std::string> get_module_directory(HMODULE module) {
         wchar_t fileName[MAX_PATH]{ 0 };
         if (GetModuleFileNameW(module, fileName, MAX_PATH) >= MAX_PATH) {
             return {};
@@ -42,6 +42,24 @@ namespace utility {
         PathRemoveFileSpecW(fileName);
 
         return utility::narrow(fileName);
+    }
+
+    optional<HMODULE> get_module_within(Address address) {
+        HMODULE module = nullptr;
+        if (GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, address.as<LPCSTR>(), &module)) {
+            return module;
+        }
+
+        return {};
+    }
+
+    std::optional<std::string> get_module_path(HMODULE module) {
+        wchar_t filename[MAX_PATH]{ 0 };
+        if (GetModuleFileNameW(module, filename, MAX_PATH) >= MAX_PATH) {
+            return {};
+        }
+
+        return utility::narrow(filename);
     }
 
     optional<uintptr_t> ptr_from_rva(uint8_t* dll, uintptr_t rva) {

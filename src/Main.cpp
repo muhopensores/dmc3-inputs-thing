@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include "ModFramework.hpp"
+#include "utility/ExceptionHandler.hpp"
 
 static HMODULE g_dinput;
 static HMODULE g_styleswitcher;
@@ -25,6 +26,8 @@ void failed() {
 }
 
 void startup_thread() {
+
+	reframework::setup_exception_handler();
 #ifndef NDEBUG
 	AllocConsole();
 	HANDLE handleOut = GetStdHandle(STD_OUTPUT_HANDLE);

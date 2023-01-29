@@ -93,6 +93,8 @@ set(UTILITY_SRC
     utility/String.cpp
     utility/FixedQueue.hpp
     utility/FixedQueue.cpp
+    utility/ExceptionHandler.hpp
+    utility/ExceptionHandler.cpp
     utility/Thread.hpp
     utility/Thread.cpp
     utility/SDLGamepad.hpp
