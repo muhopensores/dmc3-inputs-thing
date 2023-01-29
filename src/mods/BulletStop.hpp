@@ -32,6 +32,7 @@ private:
   //std::unique_ptr<FunctionHook> m_function_hook;
 	std::unique_ptr<Patch> m_nop_patch01;
 	std::unique_ptr<Patch> m_nop_patch02;
+	std::unique_ptr<Patch> m_nop_patch03;
 
 	ValueList m_options{
 		*m_bs_tgl

@@ -4,12 +4,14 @@ void BulletStop::apply_patches(bool enable) {
 	if (enable) {
 		m_nop_patch01 = Patch::create_nop(0x427B73, 6, true);
 		m_nop_patch02 = Patch::create_nop(0x43D3C3, 6, true);
+		m_nop_patch03 = Patch::create_nop(0x4284FF, 6, true); // hammer knockdown
 		m_patched = true;
 	}
 	else {
 		if (!m_patched) { return; }
 		m_nop_patch01.reset();
 		m_nop_patch02.reset();
+		m_nop_patch03.reset();
 		m_patched = false;
 	}
 }
