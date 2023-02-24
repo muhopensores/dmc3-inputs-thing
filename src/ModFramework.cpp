@@ -22,6 +22,7 @@
 #include "PromptFontCompressed.cpp"
 #include "PromptFontGlyphs.hpp"
 #include "utility/Thread.hpp"
+#include "utility/ExceptionHandler.hpp"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -345,6 +346,8 @@ bool ModFramework::initialize() {
     if (m_initialized) {
         return true;
     }
+
+    reframework::setup_exception_handler();
 
     spdlog::info("Attempting to initialize");
 
