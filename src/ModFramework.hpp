@@ -74,7 +74,7 @@ private:
     bool m_first_frame{ true };
     bool m_valid{ false };
     bool m_initialized{ false };
-    bool m_draw_ui{ true };
+    bool m_draw_ui{ false };
 	bool m_draw_cursor{ true };
 	bool m_window_focused{ true };
     std::atomic<bool> m_game_data_initialized{ false };

@@ -33,6 +33,6 @@ private:
   void* m_sound_file_mem;
   unsigned int m_sound_file_mem_size;
   void play_sound();
-  VoxObj* m_vox = nullptr;
-  bool m_3d_audio = false;
+  //VoxObj* //m_vox = nullptr;
+  //bool m_3d_audio = false;
 };

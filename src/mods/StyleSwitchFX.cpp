@@ -7,7 +7,7 @@ static CPlDante* g_char_ptr = nullptr;
 static cCameraCtrl* g_cam_ptr = nullptr;
 
 #pragma comment(lib, "Winmm.lib")
-
+#ifdef SND_HACK
 #define SND_CREATE_VOX(name) VoxObj* name()
 typedef SND_CREATE_VOX(snd_create_vox);
 SND_CREATE_VOX(SndCreateVoxStub) {
@@ -15,6 +15,7 @@ SND_CREATE_VOX(SndCreateVoxStub) {
 }
 static snd_create_vox* SndCreateVox_ = SndCreateVoxStub;
 #define SndCreateVox SndCreateVox_
+#endif
 
 // TODO(): ability to change vfx that's played ?
 static int       g_vfx_id = 218;
@@ -109,8 +110,9 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
 	g_char_ptr = (CPlDante*)0x1C8A600;
 	//g_cam_ptr = (CCameraCtrl*)0x01371978;
 
-	m_sound_file_mem = utility::DecompressFileFromMemory(sfx_compressed_data,sfx_compressed_size);
+	//m_sound_file_mem = utility::DecompressFileFromMemory(sfx_compressed_data,sfx_compressed_size);
 	
+#ifdef SND_TODO
 	HMODULE snd = GetModuleHandle("snd.drv");
 	if (!snd) {
 		spdlog::info("[StyleSwitchFX]: snd.drv not found\n");
@@ -135,11 +137,14 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
 		spdlog::info("Got VoxObj from snd.drv! Nice\n");
 		printf("Got VoxObj from snd.drv! Nice\n");
 	}
+#endif
 	auto decompressed= utility::DecompressFileFromMemoryWithSize(sfx_compressed_data,sfx_compressed_size);
 	m_sound_file_mem = std::get<0>(decompressed);
 	m_sound_file_mem_size = std::get<1>(decompressed);
+#ifdef SND_TODO
 	m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
 	m_vox->set_volume(1.0f);
+#endif
   return Mod::on_initialize();
 }
 
@@ -168,9 +173,7 @@ void StyleSwitchFX::on_frame() {
 	if ((g_char_ptr->pad_0000) != 0x744D38) { return; }
 	if (*current_style != prev_style) {
 		play_effect(*current_style);
-		if (g_enable_sound) { 
-			play_sound();
-		}
+		play_sound();
 		prev_style = *current_style;
 	}
 }
@@ -187,6 +190,7 @@ void StyleSwitchFX::on_draw_ui() {
 	ImGui::Checkbox("Enable style switch effects", &g_enable_mod);
 	
 	ImGui::Checkbox("Enable sound effect", &g_enable_sound);
+#if SND_TODO
 	if (m_vox != nullptr) {
 		static float snd_volume = 1.0f;
 		if (ImGui::DragFloat("Audio volume", &snd_volume,0.1f,0.0f,10.0f)) {
@@ -195,6 +199,7 @@ void StyleSwitchFX::on_draw_ui() {
 		}
 		ImGui::Checkbox("3D audio effects", &m_3d_audio);
 	}
+#endif
 	
 	ImGui::Text("Customize style colors");
 
@@ -205,6 +210,8 @@ void StyleSwitchFX::on_draw_ui() {
 
 void StyleSwitchFX::play_sound()
 {
+	if (!g_enable_sound) { return; }
+#if SND_TODO
 	if (m_vox) {
 		cCameraCtrl* camera = Devil3SDK::get_cam_ctrl();
 		if (!camera || camera == (cCameraCtrl*)-1) { return; };
@@ -227,6 +234,9 @@ void StyleSwitchFX::play_sound()
 
 	}
 	else {
+#endif
 		PlaySound((LPCSTR)m_sound_file_mem, NULL, SND_MEMORY | SND_ASYNC);
+#ifdef SND_TODO
 	}
+#endif
 }
