@@ -280,7 +280,6 @@ protected:
 public:
     virtual ~Mod() {};
     virtual std::string_view get_name() const { return "UnknownMod"; };
-
     // can be used for ModValues, like Mod_ValueName
     virtual std::string generate_name(std::string_view name) { return std::string{ get_name() } + "_" + name.data(); }
 

@@ -100,5 +100,5 @@ LONG WINAPI reframework::global_exception_handler(struct _EXCEPTION_POINTERS* ei
 }
 
 void reframework::setup_exception_handler() {
-    SetUnhandledExceptionFilter(global_exception_handler);
+    //SetUnhandledExceptionFilter(global_exception_handler);
 }

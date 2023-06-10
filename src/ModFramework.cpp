@@ -346,8 +346,9 @@ bool ModFramework::initialize() {
     if (m_initialized) {
         return true;
     }
-
-    reframework::setup_exception_handler();
+#ifdef NDEBUG
+    //reframework::setup_exception_handler();
+#endif
 
     spdlog::info("Attempting to initialize");
 

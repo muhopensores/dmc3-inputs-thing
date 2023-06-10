@@ -235,6 +235,7 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	if (init) {
 		return Mod::on_initialize();
 	}
+#if 0 // TODO(): removed due to custom snd.drv issues
 	HMODULE snd = GetModuleHandle("snd.drv");
 	if (!snd) {
 		spdlog::info("[AudioStutterFix]: snd.drv not found\n");
@@ -247,20 +248,22 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 		printf("[AudioStutterFix]: not using custom snd.drv, skipping audio fixes.\n");
 		return Mod::on_initialize();
 	}
+#endif
 	/* patching out: 
 	6A 64 - push 64
 	FF D7 - call edi
 	*/
 	m_enabled = true;
+
 	std::vector<int16_t> bytes; bytes.resize(0x4);
 	std::fill(bytes.begin(), bytes.end(), 0x90);
 	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
 	m_disable_sleep2 = new Patch(0x00404998, bytes, true);
-
+#if 0 // TODO(): removed due to custom snd.drv issues
 	game_snd_channels = (Devil3BgmChannels*)0x0832DBC;
 	cCustomize_hack = new FunctionHook(0x0044418B, &c_cusomize_detour);
 	cCustomize_hack->create();
-
+#endif
 	return Mod::on_initialize();
 }
 

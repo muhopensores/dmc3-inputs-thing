@@ -21,6 +21,8 @@
 #include "mods/TurnSpeed.hpp"
 #include "mods/EnemyStepCooldown.hpp"
 #include "mods/EnemyStates.hpp"
+#include "mods/EnemySpawnRate.hpp"
+#include "mods/CustomAlolcator.hpp"
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
@@ -36,6 +38,7 @@ Mods::Mods()
 
 void Mods::load_time_critical_mods() {
 	m_mods.emplace_back(std::make_unique<GamepadsFix>());
+	m_mods.emplace_back(std::make_unique<CustomAlolcator>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
 
@@ -56,8 +59,9 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
+	m_mods.emplace_back(std::make_unique<EnemySpawnRate>());
 
-#ifdef _DEBUG
+#ifndef _NDEBUG
 	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG
 	//m_mods.emplace_back(std::make_unique<CameraHack>());
@@ -103,10 +107,10 @@ void Mods::on_draw_ui() const {
 }
 
 void Mods::on_draw_custom_imgui_window() const {
-	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[5].get()); // epic footguns akimbo
-	InputLog* l = dynamic_cast<InputLog*>(m_mods[8].get()); // epic footguns akimbo part2
-	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[9].get()); // epic footguns akimbo part3
-	RgTimer* t = dynamic_cast<RgTimer*>(m_mods[10].get());
+	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[6].get()); // epic footguns akimbo
+	InputLog* l = dynamic_cast<InputLog*>(m_mods[9].get()); // epic footguns akimbo part2
+	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[10].get()); // epic footguns akimbo part3
+	RgTimer* t = dynamic_cast<RgTimer*>(m_mods[11].get());
 	p->custom_imgui_window();
 	l->custom_imgui_window();
 	d->custom_imgui_window();

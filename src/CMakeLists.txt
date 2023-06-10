@@ -1,5 +1,9 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/CustomAlolcator.hpp
+    mods/CustomAlolcator.cpp
+    mods/EnemySpawnRate.hpp
+    mods/EnemySpawnRate.cpp
     mods/RgTimer.hpp
     mods/RgTimer.cpp
     mods/DebugDraw.hpp
