@@ -219,7 +219,31 @@ int main(int argc, char** argv) {
 }
 #endif
 
-static Arena g_bigass_arena = { 0 };
+static Arena g_bigass_arena = {0};
+
+static __declspec(naked) void g_bigass_arena_push_asm(void) {
+  _asm {
+		push g_bigass_arena
+  }
+}
+
+static __declspec(naked) void push_00000800_asm(void) {
+  _asm {
+		push 0x000800
+  }
+}
+
+static __declspec(naked) void push_002B0000_asm(void) {
+  _asm {
+		push 0x2B0000
+  }
+}
+
+static __declspec(naked) void push_001309C0_asm(void) {
+  _asm {
+		push 0x1309C0
+  }
+}
 
 std::optional<std::string> CustomAlolcator::on_initialize() {
 	
@@ -253,12 +277,21 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	if (m_alloc_hook->create()) {
 		return "Failed to install alolcator hook";
 	}
+	/*
+	patch01 = Patch::create(0x65B806, (char*)&g_bigass_arena_push_asm, true); // address
+    patch02 = Patch::create(0x65B80B, {0x68, 0x00, 0x08, 0x00, 0x00}, true);  // push 00000800 default
+    patch03 = Patch::create(0x65B810, (char*)&g_bigass_arena_push_asm, true); // address
+    patch04 = Patch::create(0x65B82C, {0x68, 0x00, 0x00, 0x00, 0x2B}, true);  // push 002B0000 default
+    patch05 = Patch::create(0x65B80B, {0x68, 0x00, 0x08, 0x00, 0x00}, true);  // push 00000800 default
+    patch06 = Patch::create(0x65B836, {0x68, 0x00, 0x08, 0x00, 0x00}, true);  // push 00000800 default					    
+	patch07 = Patch::create(0x65B852, {0x68, 0xC0, 0x09, 0x13, 0x00}, true);  // push 001309C0 default
+    patch08 = Patch::create(0x65B85C, {0x68, 0xC0, 0x09, 0x13, 0x00}, true);  // push 001309C0 default
+	*/
 	// hack to check if we running more memory patch outside
 	mem_patch_applied = true;
 
 	return Mod::on_initialize();
 }
-
 
 uintptr_t __fastcall CustomAlolcator::sub_6D4580_internal(uintptr_t p_this, uintptr_t a2, uintptr_t a3)
 {
