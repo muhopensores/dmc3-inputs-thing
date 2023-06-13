@@ -1,6 +1,7 @@
 #pragma once
 #include "Mod.hpp"
 #include "sdk/ReClass.hpp"
+#include "utility/Patch.hpp"
 class CustomAlolcator : public Mod {
 public:
   CustomAlolcator() = default;
@@ -21,6 +22,15 @@ public:
   // on_draw_debug_ui() is called when debug window shows up
   //void on_draw_debug_ui() override;
   bool mem_patch_applied{ false };
+
+  std::unique_ptr<Patch> patch01;
+  std::unique_ptr<Patch> patch02;
+  std::unique_ptr<Patch> patch03;
+  std::unique_ptr<Patch> patch04;
+  std::unique_ptr<Patch> patch05;
+  std::unique_ptr<Patch> patch06;
+  std::unique_ptr<Patch> patch07;
+  std::unique_ptr<Patch> patch08;
 
 protected:
 	uintptr_t __fastcall sub_6D4580_internal(uintptr_t p_this, uintptr_t a2, uintptr_t a3);
