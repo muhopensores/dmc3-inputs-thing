@@ -14,6 +14,7 @@
 #include "sdk/Devil3.hpp"
 
 #include "utility/Config.hpp"
+#include "utility/Patch.hpp"
 
 #include "ModFramework.hpp"
 
@@ -295,7 +296,33 @@ public:
 			ImGui::EndTooltip();
 		}
 	}
+    void install_patch_absolute(uintptr_t location, std::unique_ptr<Patch>& patch, const char* patch_bytes, uint8_t length) {
+        spdlog::info("{}: Installing patch at {:x}.\n", get_name(), location);
+        patch.reset(nullptr);
+        std::vector<int16_t> bytes;
+        while (length > 0) {
+            bytes.push_back((short)(*patch_bytes) & 0x00FF);
+            patch_bytes++;
+            length--;
+        }
+        patch = Patch::create(location, bytes, true);
+        //patch.reset(Patch::create_raw(location, bytes, true));
+    }
 
+    void install_patch_offset(ptrdiff_t offset, std::unique_ptr<Patch>& patch, const char* patch_bytes, uint8_t length) {
+        uintptr_t base = g_framework->get_module().as<uintptr_t>();
+        uintptr_t location = base + offset;
+        spdlog::info("{}: Installing patch at {:x}.\n", get_name(), location);
+        patch.reset(nullptr);
+        std::vector<int16_t> bytes;
+        while (length > 0) {
+            bytes.push_back((short)(*patch_bytes) & 0x00FF);
+            patch_bytes++;
+            length--;
+        }
+        patch = Patch::create(location, bytes, true);
+        //patch.reset(Patch::create_raw(location, bytes, true));
+    }
 	// Wrapper for easy install of hooks.
 	// \param offset : offset from game exe base where hook will be installed 
 	// \param hook : FunctionHook object instance

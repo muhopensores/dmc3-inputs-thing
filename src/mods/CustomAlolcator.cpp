@@ -1,5 +1,10 @@
 #include "CustomAlolcator.hpp"
 
+
+// File stuff for memory arena save/load
+// cool wrappers for winapi file from some handmade hero repo on github idk
+// what loicense this code has might switch to fopen or something if its not cool mr.casey
+
 inline std::uint32_t
 SafeTruncateUInt64(std::uint64_t Value)
 {
@@ -321,24 +326,50 @@ int main(int argc, char** argv) {
 
 static Arena g_bigass_arena = {0};
 
-static __declspec(naked) void g_bigass_arena_push_asm(void) {
-  _asm {
-		push g_bigass_arena
-  }
+
+static __declspec(naked) void push_16megs(void) {
+	_asm {
+		push (16*1024*1024); // cant use cool constexpr size literals here smh
+	}
 }
 
+static __declspec(naked) void push_32megs(void) {
+	_asm {
+		push(32 * 1024 * 1024); // cant use cool constexpr size literals here smh
+	}
+}
+
+static __declspec(naked) void push_64megs(void) {
+	_asm {
+		push(64 * 1024 * 1024); // cant use cool constexpr size literals here smh
+	}
+}
+
+static __declspec(naked) void push_128megs(void) {
+	_asm {
+		push(64 * 1024 * 1024); // cant use cool constexpr size literals here smh
+	}
+}
+
+//dmc3se.exe + 25B806
+static __declspec(naked) void g_bigass_arena_push_asm(void) {
+	_asm {
+		push g_bigass_arena
+	}
+}
+// dmc3se.exe+25B80B 
 static __declspec(naked) void push_00000800_asm(void) {
   _asm {
 		push 0x000800
   }
 }
-
+// dmc3se.exe+25B82C 
 static __declspec(naked) void push_002B0000_asm(void) {
   _asm {
 		push 0x2B0000
   }
 }
-
+// dmc3se.exe+25B852 
 static __declspec(naked) void push_001309C0_asm(void) {
   _asm {
 		push 0x1309C0
@@ -392,6 +423,16 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	if (!m_alloc_hook->create()) {
 		return "Failed to install alolcator hook";
 	}
+
+	install_patch_absolute(0x65B806, patch01, (char*)&push_16megs, 5); // going above 16 here crashes ui shit idk 
+	install_patch_absolute(0x65B810, patch02, (char*)&push_16megs, 5); // same
+
+	install_patch_absolute(0x65B82C, patch03, (char*)&push_128megs, 5); // push 002B0000 default
+	install_patch_absolute(0x65B836, patch04, (char*)&push_128megs, 5); // push 002B0000 default
+	
+	install_patch_absolute(0x65B852, patch05, (char*)&push_64megs, 5); // push 001309C0 default
+	install_patch_absolute(0x65B85C, patch06, (char*)&push_64megs, 5); // push 001309C0 default
+
 	/*
 	patch01 = Patch::create(0x65B806, (char*)&g_bigass_arena_push_asm, true); // address
     patch02 = Patch::create(0x65B80B, {0x68, 0x00, 0x08, 0x00, 0x00}, true);  // push 00000800 default
