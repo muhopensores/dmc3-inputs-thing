@@ -1,5 +1,105 @@
 #include "CustomAlolcator.hpp"
 
+inline std::uint32_t
+SafeTruncateUInt64(std::uint64_t Value)
+{
+	IM_ASSERT(Value <= 0xFFFFFFFF);
+	std::uint32_t Result = (std::uint32_t)Value;
+	return(Result);
+}
+
+struct File {
+	LPVOID Contents;
+	size_t ContentsSize;
+};
+
+static void
+DEBUGPlatformFreeFileMemory(void* Memory)
+{
+	if (Memory)
+	{
+		VirtualFree(Memory, 0, MEM_RELEASE);
+	}
+}
+
+static File
+DEBUGPlatformReadEntireFile(char* Filename)
+{
+	File Result{};
+	HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+	if (FileHandle != INVALID_HANDLE_VALUE)
+	{
+		LARGE_INTEGER FileSize;
+		if (GetFileSizeEx(FileHandle, &FileSize))
+		{
+			auto FileSize32 = SafeTruncateUInt64(FileSize.QuadPart);
+			Result.Contents = VirtualAlloc(0, FileSize32, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+			if (Result.Contents)
+			{
+				DWORD BytesRead;
+				if (ReadFile(FileHandle, Result.Contents, FileSize32, &BytesRead, 0) &&
+					(FileSize32 == BytesRead))
+				{
+					// NOTE(casey): File read successfully
+					Result.ContentsSize = FileSize32;
+				}
+				else
+				{
+					// TODO(casey): Logging
+					DEBUGPlatformFreeFileMemory(Result.Contents);
+					Result.Contents = 0;
+				}
+			}
+			else
+			{
+				// TODO(casey): Logging
+			}
+		}
+		else
+		{
+			// TODO(casey): Logging
+		}
+
+		CloseHandle(FileHandle);
+	}
+	else
+	{
+		// TODO(casey): Logging
+	}
+
+	return(Result);
+}
+
+static bool
+DEBUGPlatformWriteEntireFile(char* Filename, uint32_t MemorySize, void* Memory)
+{
+	bool Result = false;
+
+	HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
+	if (FileHandle != INVALID_HANDLE_VALUE)
+	{
+		DWORD BytesWritten;
+		if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0))
+		{
+			// NOTE(casey): File read successfully
+			Result = (BytesWritten == MemorySize);
+		}
+		else
+		{
+			// TODO(casey): Logging
+		}
+
+		CloseHandle(FileHandle);
+	}
+	else
+	{
+		// TODO(casey): Logging
+	}
+
+	return(Result);
+}
+
+
 // to check if allocation succeded in other mods (LDK so far)
 CustomAlolcator* g_custom_alolcator{ nullptr };
 
@@ -232,15 +332,27 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 
 	g_custom_alolcator = this;
 
-	LPVOID lpAddress = NULL;//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
-	constexpr auto dwSize = 1_GiB;
+
+	SYSTEM_INFO sysInfo;
+	GetSystemInfo(&sysInfo);
+	LPVOID lpMinimumApplicationAddress = sysInfo.lpMinimumApplicationAddress;
+	LPVOID lpMaximumApplicationAddress = sysInfo.lpMaximumApplicationAddress;
+	printf("lpMinimumApplicationAddress=%p;\tlpMaximumApplicationAddress=%p\n", lpMinimumApplicationAddress, lpMaximumApplicationAddress);
+
+	LPVOID lpAddress = (void*)(256_MiB >> 1);//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
+	constexpr auto dwSize = 512_MiB;
 	DWORD flAllocationType = MEM_COMMIT | MEM_RESERVE;
 	DWORD flProtect = PAGE_EXECUTE_READWRITE; // idk capcom might be cuhrazy enough to write code in there, ask for executable just to be "safe"
 	LPVOID lpMemory = VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
+	IM_ASSERT((lpAddress < lpMaximumApplicationAddress) && (lpAddress > lpMinimumApplicationAddress));
+	IM_ASSERT(lpMemory != NULL);
+
 	if (lpMemory == NULL) {
+		printf("Virtual alloc failed with code 0x%X.\n", GetLastError());
 		printf("failed to virtual alloc\n");
 		return "failed to allocate memory arena";
 	}
+	printf("\n================= COOL MEMORY ARENA start: %p =================\n", lpMemory);
 
 	m_alloc_hook = std::make_unique<FunctionHook>(0x6D4580, &sub_6D4580);
 
@@ -249,8 +361,11 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 
 	// pad cause capcops like to do [eax-4]
 	static constexpr auto offset_into_an_alloc = 1024;
-	arena_alloc(&g_bigass_arena, offset_into_an_alloc);
-	if (m_alloc_hook->create()) {
+	void* unused = arena_alloc(&g_bigass_arena, offset_into_an_alloc);
+
+	IM_ASSERT(unused != NULL);
+
+	if (!m_alloc_hook->create()) {
 		return "Failed to install alolcator hook";
 	}
 	// hack to check if we running more memory patch outside
@@ -262,16 +377,17 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 
 uintptr_t __fastcall CustomAlolcator::sub_6D4580_internal(uintptr_t p_this, uintptr_t a2, uintptr_t a3)
 {
-	uintptr_t res = (uintptr_t)arena_alloc(&g_bigass_arena, a3);
+	uintptr_t res = (uintptr_t)arena_alloc(&g_bigass_arena, a3*2);
 	*(DWORD*)(p_this + 8) += a2;
 
-	if (res == NULL) { // call orig in case we ran out of 1 gig or some wacky shit happens
-		res = m_alloc_hook->get_original<decltype(sub_6D4580)>()(p_this, a2, a3);
-	}
 #ifndef _NDEBUG
 	printf("sub_6D4580(this=%p, unk=%d, size?=%d)\n", (void*)p_this, a2, a3);
 	printf("g_bigass_arena->size_left= %d\n", (g_bigass_arena.buf_len - g_bigass_arena.curr_offset));
+	IM_ASSERT(res != NULL && "oh no arena_alloc returned a NULL ");
 #endif
+	if (res == NULL) { // call orig in case we ran out of 1 gig or some wacky shit happens
+		res = m_alloc_hook->get_original<decltype(sub_6D4580)>()(p_this, a2, a3);
+	}
 
 	return res;
 	//return (uintptr_t)arena_alloc(&g_bigass_arena,a3);
@@ -301,5 +417,19 @@ uintptr_t __fastcall CustomAlolcator::sub_6D4580(uintptr_t p_this, uintptr_t a2,
 void CustomAlolcator::on_draw_ui() {
 	if (ImGui::CollapsingHeader("Memory Alolcator Adjustments")) {
 		ImGui::Text("TODOOOOO");
+		if (ImGui::Button("Dump memory")) {
+			DEBUGPlatformWriteEntireFile("g_bigass_arena.ass", g_bigass_arena.buf_len, g_bigass_arena.buf);
+		}
+		if (ImGui::Button("Load memory")) {
+			static File memdump = DEBUGPlatformReadEntireFile("g_bigass_arena.ass");
+			unsigned long long* w_iter = (unsigned long long*)g_bigass_arena.buf;
+			unsigned long long* r_iter = (unsigned long long*)memdump.Contents;
+			
+			for (unsigned long long i = 0; i < (g_bigass_arena.buf_len / sizeof(unsigned long long)); i++) {
+				while (InterlockedCompareExchange(&w_iter[i], r_iter[i], w_iter[i]) != w_iter[i]) {
+				}
+			}
+			DEBUGPlatformFreeFileMemory(memdump.Contents);
+		}
 	}
 }
