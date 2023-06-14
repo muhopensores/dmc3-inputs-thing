@@ -2,6 +2,35 @@
 #include "Mod.hpp"
 #include "sdk/ReClass.hpp"
 #include "utility/Patch.hpp"
+
+// Created with ReClass.NET 1.2 by KN4CK3R
+
+class SomeMemoryManagerShit
+{
+public:
+	class SomeStackFramePointerMaybe* ptr1; //0x0000
+	void* ptr2; //0x0004
+	uint32_t uint1; //0x0008
+	char pad_000C[52]; //0x000C
+}; //Size: 0x0040
+
+class SomeStackFramePointerMaybe
+{
+public:
+	void* ptr1; //0x0000
+	void* ptr2; //0x0004
+	void* ptr3; //0x0008
+	void* ptr4; //0x000C
+	uint32_t uint1; //0x0010
+	uint32_t uint2; //0x0014
+	uint32_t uint3; //0x0018
+	uint32_t uint4; //0x001C
+	void* ptrEnd1; //0x0020
+	void* ptrEnd2; //0x0024
+	uint32_t uint5; //0x0028
+}; //Size: 0x002C
+
+
 class CustomAlolcator : public Mod {
 public:
   CustomAlolcator() = default;
@@ -33,8 +62,8 @@ public:
   std::unique_ptr<Patch> patch08;
 
 protected:
-	uintptr_t __fastcall sub_6D4580_internal(uintptr_t p_this, uintptr_t a2, uintptr_t a3);
-	static uintptr_t __fastcall sub_6D4580(uintptr_t p_this, uintptr_t a2, uintptr_t a3);
+	uintptr_t __fastcall sub_6D4580_internal(SomeMemoryManagerShit* p_this, uintptr_t unused, uintptr_t size);
+	static uintptr_t __fastcall sub_6D4580(SomeMemoryManagerShit* p_this, uintptr_t unused, uintptr_t size);
 private:
 	std::unique_ptr<FunctionHook> m_alloc_hook;
   // function hook instance for our detour, convinient wrapper 

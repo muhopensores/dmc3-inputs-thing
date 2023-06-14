@@ -152,11 +152,12 @@ bool is_power_of_two(uintptr_t x) {
 uintptr_t align_forward(uintptr_t ptr, size_t align) {
 	uintptr_t p, a, modulo;
 
-	assert(is_power_of_two(align));
+	//assert(is_power_of_two(align));
 
 	p = ptr;
 	a = (uintptr_t)align;
 	// Same as (p % a) but faster as 'a' is a power of two
+	//modulo = p & (a - 1);
 	modulo = p & (a - 1);
 
 	if (modulo != 0) {
@@ -375,7 +376,17 @@ static __declspec(naked) void push_001309C0_asm(void) {
 		push 0x1309C0
   }
 }
+static void load_save_state(void) {
+	static File memdump = DEBUGPlatformReadEntireFile("g_bigass_arena.ass");
+	unsigned long long* w_iter = (unsigned long long*)g_bigass_arena.buf;
+	unsigned long long* r_iter = (unsigned long long*)memdump.Contents;
 
+	for (unsigned long long i = 0; i < (g_bigass_arena.buf_len / sizeof(unsigned long long)); i++) {
+		while (InterlockedCompareExchange(&w_iter[i], r_iter[i], w_iter[i]) != w_iter[i]) {
+		}
+	}
+	//DEBUGPlatformFreeFileMemory(memdump.Contents);
+}
 std::optional<std::string> CustomAlolcator::on_initialize() {
 	
 	// WARNING(): dirty hack to only init once here:
@@ -394,12 +405,26 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	LPVOID lpMaximumApplicationAddress = sysInfo.lpMaximumApplicationAddress;
 	printf("lpMinimumApplicationAddress=%p;\tlpMaximumApplicationAddress=%p\n", lpMinimumApplicationAddress, lpMaximumApplicationAddress);
 
-	LPVOID lpAddress = (void*)(256_MiB >> 1);//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
-	constexpr auto dwSize = 512_MiB;
+	//dmc3se.exe+2D0D2E - 81 E3 FFFFFF0F        - and ebx,0FFFFFFF
+	const LPVOID capcops_range = (LPVOID)0x0FFFFFFF; // we can only address like 256 mbs :(
+	LPVOID lpAddress = lpMinimumApplicationAddress;//(void*)(256_MiB );//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
+	int32_t dwSize = 256_MiB - (int32_t)lpMinimumApplicationAddress;
 	DWORD flAllocationType = MEM_COMMIT | MEM_RESERVE;
 	DWORD flProtect = PAGE_EXECUTE_READWRITE; // idk capcom might be cuhrazy enough to write code in there, ask for executable just to be "safe"
-	LPVOID lpMemory = VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
-	IM_ASSERT((lpAddress < lpMaximumApplicationAddress) && (lpAddress > lpMinimumApplicationAddress));
+	LPVOID lpMemory = NULL;
+	int i = 0;
+	while (lpMemory == NULL)
+	{
+		lpMemory = VirtualAlloc((LPVOID)lpAddress, dwSize, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+		lpAddress = (LPVOID)((DWORD_PTR)lpAddress + sysInfo.dwPageSize);
+		dwSize = dwSize - sysInfo.dwPageSize;
+		if ((lpAddress >= capcops_range) || (dwSize <= 1)) {
+			break;
+		}
+		printf("VirtualAlloc loop lpAddress=%p; dwSize=%d\n", lpAddress, dwSize);
+
+	}
+	//IM_ASSERT((lpAddress < lpMaximumApplicationAddress) && (lpAddress > lpMinimumApplicationAddress));
 	IM_ASSERT(lpMemory != NULL);
 
 	if (lpMemory == NULL) {
@@ -408,6 +433,7 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 		return "failed to allocate memory arena";
 	}
 	printf("\n================= COOL MEMORY ARENA start: %p =================\n", lpMemory);
+	printf("\n================= COOL MEMORY ARENA size:  %d =================\n", dwSize);
 
 	m_alloc_hook = std::make_unique<FunctionHook>(0x6D4580, &sub_6D4580);
 
@@ -423,16 +449,16 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	if (!m_alloc_hook->create()) {
 		return "Failed to install alolcator hook";
 	}
+#if 1
+	install_patch_absolute(0x65B806, patch01, (char*)&push_32megs, 5); // going above 16 here crashes ui shit idk 
+	install_patch_absolute(0x65B810, patch02, (char*)&push_32megs, 5); // same
 
-	install_patch_absolute(0x65B806, patch01, (char*)&push_16megs, 5); // going above 16 here crashes ui shit idk 
-	install_patch_absolute(0x65B810, patch02, (char*)&push_16megs, 5); // same
-
-	install_patch_absolute(0x65B82C, patch03, (char*)&push_128megs, 5); // push 002B0000 default
-	install_patch_absolute(0x65B836, patch04, (char*)&push_128megs, 5); // push 002B0000 default
+	install_patch_absolute(0x65B82C, patch03, (char*)&push_32megs, 5); // push 002B0000 default
+	install_patch_absolute(0x65B836, patch04, (char*)&push_32megs, 5); // push 002B0000 default
 	
-	install_patch_absolute(0x65B852, patch05, (char*)&push_64megs, 5); // push 001309C0 default
-	install_patch_absolute(0x65B85C, patch06, (char*)&push_64megs, 5); // push 001309C0 default
-
+	install_patch_absolute(0x65B852, patch05, (char*)&push_32megs, 5); // push 001309C0 default
+	install_patch_absolute(0x65B85C, patch06, (char*)&push_32megs, 5); // push 001309C0 default
+#endif
 	/*
 	patch01 = Patch::create(0x65B806, (char*)&g_bigass_arena_push_asm, true); // address
     patch02 = Patch::create(0x65B80B, {0x68, 0x00, 0x08, 0x00, 0x00}, true);  // push 00000800 default
@@ -449,26 +475,114 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	return Mod::on_initialize();
 }
 
-uintptr_t __fastcall CustomAlolcator::sub_6D4580_internal(uintptr_t p_this, uintptr_t a2, uintptr_t a3)
-{
-	uintptr_t res = (uintptr_t)arena_alloc(&g_bigass_arena, a3*2);
-	*(DWORD*)(p_this + 8) += a2;
 
+#define sub_6D4AF0(name)                                                 \
+  char __cdecl name(uint32_t*, uint32_t)
+typedef sub_6D4AF0(sub_6D4AF0_t);
+
+static sub_6D4AF0_t* sub_6D4AF0_ = (sub_6D4AF0_t*)0x6D4AF0;
+
+
+/*
+int __thiscall our_malloc_thing_sub_6D4580(SomeMemoryManagerShit *this, void *size, void *a3)
+{
+  struct SomeStackFramePointerMaybe *ptr1; // eax
+  int ptr3; // edi
+
+  ptr1 = this->ptr1;
+  if ( this->ptr1 )
+  {
+	if ( this->uint1 == ptr1->uint1 )
+	{
+	  ptr3 = (int)ptr1->ptr3;
+	  if ( (void *)((unsigned int)size + ptr3) <= ptr1->ptr2 )
+	  {
+		sub_6D4AF0((int *)&size, ptr1->uint2);  // aligns per buffer or some shit
+		this->ptr1->ptr3 = (char *)this->ptr1->ptr3 + (unsigned int)size;
+		return ptr3;
+	  }
+	  else
+	  {
+		debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x8Bu);
+		return 0;
+	  }
+	}
+	else
+	{
+	  debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x84u);
+	  return 0;
+	}
+  }
+  else
+  {
+	debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x7Eu);
+	return 0;
+  }
+}
+*/
+
+uintptr_t __fastcall CustomAlolcator::sub_6D4580_internal(SomeMemoryManagerShit* p_this, uintptr_t unused, uintptr_t size) {
+	struct SomeStackFramePointerMaybe* ptr1; // eax
+	int ptr3; // edi
+	//uintptr_t res = (uintptr_t)arena_alloc_align(&g_bigass_arena, unused*2,32);
+	ptr1 = p_this->ptr1;
+	if (p_this->ptr1)
+	{
+		if (p_this->uint1 == ptr1->uint1)
+		{
+			ptr3 = (int)ptr1->ptr3;
+			ptr1->ptr2 = (void*)g_bigass_arena.buf_len;
+			//if ((void*)((unsigned int)size + ptr3) <= ptr1->ptr2)
+			//{
+				auto backupsize = size;
+				sub_6D4AF0_(&size, ptr1->uint2);  // aligns per buffer or some shit
+
+
+				p_this->ptr1->ptr3 = arena_alloc(&g_bigass_arena, size);//(char*)p_this->ptr1->ptr3 + (unsigned int)size;
+				IM_ASSERT(p_this->ptr1->ptr3 != NULL);
 #ifndef _NDEBUG
-	printf("sub_6D4580(this=%p, unk=%d, size?=%d)\n", (void*)p_this, a2, a3);
+				printf("sub_6D4580(this=%p, unk=%d, size?=%d)\n", (void*)p_this, unused, size);
+				printf("g_bigass_arena->size_left= %d\n", (g_bigass_arena.buf_len - g_bigass_arena.curr_offset));
+#endif
+				return (uintptr_t)p_this->ptr1->ptr3;
+			//}
+			//else
+			//{
+			//	printf("Memory manager error 00\n");
+			//	//debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x8Bu);
+			//	return 0;
+			//}
+		}
+		else
+		{
+			printf("Memory manager error 01\n");
+			//debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x84u);
+			return 0;
+		}
+	}
+	else
+	{
+		printf("Memory manager error 01\n");
+		//debugLogOrDebugSprintf_sub_6D4B20(0, aFalse, aCTestprojectDe_14, 0x7Eu);
+		return 0;
+	}
+#if 0
+#ifndef _NDEBUG
+	printf("sub_6D4580(this=%p, unk=%d, size?=%d)\n", (void*)p_this, unused, size);
 	printf("g_bigass_arena->size_left= %d\n", (g_bigass_arena.buf_len - g_bigass_arena.curr_offset));
 	IM_ASSERT(res != NULL && "oh no arena_alloc returned a NULL ");
 #endif
 	if (res == NULL) { // call orig in case we ran out of 1 gig or some wacky shit happens
-		res = m_alloc_hook->get_original<decltype(sub_6D4580)>()(p_this, a2, a3);
+		res = m_alloc_hook->get_original<decltype(sub_6D4580)>()(p_this, unused, size);
 	}
 
 	return res;
+#endif
 	//return (uintptr_t)arena_alloc(&g_bigass_arena,a3);
 }
 
-uintptr_t __fastcall CustomAlolcator::sub_6D4580(uintptr_t p_this, uintptr_t a2, uintptr_t a3) {
-	return g_custom_alolcator->sub_6D4580_internal(p_this, a2, a3);
+uintptr_t __fastcall CustomAlolcator::sub_6D4580(SomeMemoryManagerShit* p_this, uintptr_t size, uintptr_t unused) {
+	return g_custom_alolcator->sub_6D4580_internal(p_this, size, unused);
 }
 
 // during load
@@ -495,15 +609,7 @@ void CustomAlolcator::on_draw_ui() {
 			DEBUGPlatformWriteEntireFile("g_bigass_arena.ass", g_bigass_arena.buf_len, g_bigass_arena.buf);
 		}
 		if (ImGui::Button("Load memory")) {
-			static File memdump = DEBUGPlatformReadEntireFile("g_bigass_arena.ass");
-			unsigned long long* w_iter = (unsigned long long*)g_bigass_arena.buf;
-			unsigned long long* r_iter = (unsigned long long*)memdump.Contents;
-			
-			for (unsigned long long i = 0; i < (g_bigass_arena.buf_len / sizeof(unsigned long long)); i++) {
-				while (InterlockedCompareExchange(&w_iter[i], r_iter[i], w_iter[i]) != w_iter[i]) {
-				}
-			}
-			DEBUGPlatformFreeFileMemory(memdump.Contents);
+			load_save_state();
 		}
 	}
 }
