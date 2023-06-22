@@ -458,6 +458,15 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	
 	install_patch_absolute(0x65B852, patch05, (char*)&push_32megs, 5); // push 001309C0 default
 	install_patch_absolute(0x65B85C, patch06, (char*)&push_32megs, 5); // push 001309C0 default
+
+	// second bunch
+	install_patch_absolute(0x6D53B2, patch07, (char*)&push_32megs, 5); // push 00000800 default
+	install_patch_absolute(0x6D5420, patch08, (char*)&push_32megs, 5); // push 0000021C default
+	install_patch_absolute(0x6D5455, patch09, (char*)&push_32megs, 5); // push 00000221 default
+	install_patch_absolute(0x6D54A0, patch10, (char*)&push_32megs, 5); // push 00000FC0 default
+	install_patch_absolute(0x6D54AD, patch11, (char*)&push_32megs, 5); // push 00000FCF default
+
+	
 #endif
 	/*
 	patch01 = Patch::create(0x65B806, (char*)&g_bigass_arena_push_asm, true); // address

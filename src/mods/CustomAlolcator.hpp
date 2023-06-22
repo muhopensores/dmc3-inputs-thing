@@ -60,6 +60,9 @@ public:
   std::unique_ptr<Patch> patch06;
   std::unique_ptr<Patch> patch07;
   std::unique_ptr<Patch> patch08;
+  std::unique_ptr<Patch> patch09;
+  std::unique_ptr<Patch> patch10;
+  std::unique_ptr<Patch> patch11;
 
 protected:
 	uintptr_t __fastcall sub_6D4580_internal(SomeMemoryManagerShit* p_this, uintptr_t unused, uintptr_t size);
