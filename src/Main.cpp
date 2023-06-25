@@ -60,7 +60,7 @@ void startup_thread() {
 
 BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
 	if (reason == DLL_PROCESS_ATTACH) {
-		LoadLibrary("StyleSwitcher.dll");
+		g_styleswitcher = LoadLibrary("StyleSwitcher.dll");
 #ifndef NDEBUG
 		MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 #endif

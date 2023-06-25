@@ -152,13 +152,13 @@ bool is_power_of_two(uintptr_t x) {
 uintptr_t align_forward(uintptr_t ptr, size_t align) {
 	uintptr_t p, a, modulo;
 
-	//assert(is_power_of_two(align));
+	assert(is_power_of_two(align));
 
 	p = ptr;
 	a = (uintptr_t)align;
 	// Same as (p % a) but faster as 'a' is a power of two
-	//modulo = p & (a - 1);
 	modulo = p & (a - 1);
+	//modulo = p & (a - 1);
 
 	if (modulo != 0) {
 		// If 'p' address is not aligned, push the address to the
@@ -188,7 +188,7 @@ void arena_init(Arena* a, void* backing_buffer, size_t backing_buffer_length) {
 #if 0 // was checking for float math fucking up 0x7ff8dead is NaN when interpreted as float, the more you know
 	uint32_t* iter = (uint32_t*)a->buf;
 	for (size_t i = 0; i < (a->buf_len / sizeof(int)); i++) {
-		iter[i] = 0x7ff8dead;
+		iter[i] = 0x7ff8de00;
 	}
 #endif
 }
@@ -207,7 +207,10 @@ void* arena_alloc_align(Arena* a, size_t size, size_t align) {
 		a->curr_offset = offset + size;
 
 		// Zero new memory by default
-		memset(ptr, 0, size);
+#ifndef _NDEBUG
+		//memset(ptr, 0, size);
+#else
+#endif
 		return ptr;
 	}
 	// Return NULL if the arena is out of memory (or handle differently)
@@ -340,6 +343,11 @@ static __declspec(naked) void push_32megs(void) {
 	}
 }
 
+static __declspec(naked) void push_xmegs(void) {
+	_asm {
+		push(55 * 1024 * 1024); // cant use cool constexpr size literals here smh
+	}
+}
 static __declspec(naked) void push_64megs(void) {
 	_asm {
 		push(64 * 1024 * 1024); // cant use cool constexpr size literals here smh
@@ -348,7 +356,7 @@ static __declspec(naked) void push_64megs(void) {
 
 static __declspec(naked) void push_128megs(void) {
 	_asm {
-		push(64 * 1024 * 1024); // cant use cool constexpr size literals here smh
+		push(128 * 1024 * 1024); // cant use cool constexpr size literals here smh
 	}
 }
 
@@ -396,19 +404,28 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	}
 	init = true;
 
-	g_custom_alolcator = this;
 
+	g_custom_alolcator = this;
 
 	SYSTEM_INFO sysInfo;
 	GetSystemInfo(&sysInfo);
 	LPVOID lpMinimumApplicationAddress = sysInfo.lpMinimumApplicationAddress;
 	LPVOID lpMaximumApplicationAddress = sysInfo.lpMaximumApplicationAddress;
 	printf("lpMinimumApplicationAddress=%p;\tlpMaximumApplicationAddress=%p\n", lpMinimumApplicationAddress, lpMaximumApplicationAddress);
-
+#if 0
 	//dmc3se.exe+2D0D2E - 81 E3 FFFFFF0F        - and ebx,0FFFFFFF
 	const LPVOID capcops_range = (LPVOID)0x0FFFFFFF; // we can only address like 256 mbs :(
-	LPVOID lpAddress = lpMinimumApplicationAddress;//(void*)(256_MiB );//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
-	int32_t dwSize = 256_MiB - (int32_t)lpMinimumApplicationAddress;
+	LPVOID lpAddress = (void*)(1024_MiB >> 0);//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
+	int32_t dwSize = 1024_MiB - (int32_t)lpMinimumApplicationAddress;
+	DWORD flAllocationType = MEM_COMMIT | MEM_RESERVE;
+	DWORD flProtect = PAGE_EXECUTE_READWRITE; // idk capcom might be cuhrazy enough to write code in there, ask for executable just to be "safe"
+	LPVOID lpMemory = NULL;
+	int i = 0;
+	lpMemory = VirtualAlloc(lpAddress, (size_t)512_MiB, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+#else
+	const LPVOID capcops_range = (LPVOID)0x0FFFFFFF; // we can only address like 256 mbs :(
+	LPVOID lpAddress = lpMinimumApplicationAddress;//(void*)(2048*sysInfo.dwAllocationGranularity);//(void*)align_forward(1_GiB, DEFAULT_ALIGNMENT); // any address doesnt fucking work wth microsoft?!
+	int32_t dwSize = 512_MiB - (int32_t)lpMinimumApplicationAddress;
 	DWORD flAllocationType = MEM_COMMIT | MEM_RESERVE;
 	DWORD flProtect = PAGE_EXECUTE_READWRITE; // idk capcom might be cuhrazy enough to write code in there, ask for executable just to be "safe"
 	LPVOID lpMemory = NULL;
@@ -424,6 +441,7 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 		printf("VirtualAlloc loop lpAddress=%p; dwSize=%d\n", lpAddress, dwSize);
 
 	}
+#endif
 	//IM_ASSERT((lpAddress < lpMaximumApplicationAddress) && (lpAddress > lpMinimumApplicationAddress));
 	IM_ASSERT(lpMemory != NULL);
 
@@ -434,7 +452,7 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 	}
 	printf("\n================= COOL MEMORY ARENA start: %p =================\n", lpMemory);
 	printf("\n================= COOL MEMORY ARENA size:  %d =================\n", dwSize);
-
+	//__debugbreak();
 	m_alloc_hook = std::make_unique<FunctionHook>(0x6D4580, &sub_6D4580);
 
 	arena_init(&g_bigass_arena, lpMemory, dwSize);
@@ -450,14 +468,14 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
 		return "Failed to install alolcator hook";
 	}
 #if 1
-	install_patch_absolute(0x65B806, patch01, (char*)&push_32megs, 5); // going above 16 here crashes ui shit idk 
-	install_patch_absolute(0x65B810, patch02, (char*)&push_32megs, 5); // same
+	install_patch_absolute(0x65B806, patch01, (char*)&push_64megs, 5); // going above 16 here crashes ui shit idk 
+	install_patch_absolute(0x65B810, patch02, (char*)&push_64megs, 5); // same
 
-	install_patch_absolute(0x65B82C, patch03, (char*)&push_32megs, 5); // push 002B0000 default
-	install_patch_absolute(0x65B836, patch04, (char*)&push_32megs, 5); // push 002B0000 default
+	install_patch_absolute(0x65B82C, patch03, (char*)&push_64megs, 5); // push 002B0000 default
+	install_patch_absolute(0x65B836, patch04, (char*)&push_64megs, 5); // push 002B0000 default
 	
-	install_patch_absolute(0x65B852, patch05, (char*)&push_32megs, 5); // push 001309C0 default
-	install_patch_absolute(0x65B85C, patch06, (char*)&push_32megs, 5); // push 001309C0 default
+	install_patch_absolute(0x65B852, patch05, (char*)&push_64megs, 5); // push 001309C0 default
+	install_patch_absolute(0x65B85C, patch06, (char*)&push_64megs, 5); // push 001309C0 default
 #endif
 	/*
 	patch01 = Patch::create(0x65B806, (char*)&g_bigass_arena_push_asm, true); // address
@@ -541,8 +559,9 @@ uintptr_t __fastcall CustomAlolcator::sub_6D4580_internal(SomeMemoryManagerShit*
 				p_this->ptr1->ptr3 = arena_alloc(&g_bigass_arena, size);//(char*)p_this->ptr1->ptr3 + (unsigned int)size;
 				IM_ASSERT(p_this->ptr1->ptr3 != NULL);
 #ifndef _NDEBUG
-				printf("sub_6D4580(this=%p, unk=%d, size?=%d)\n", (void*)p_this, unused, size);
+				printf("sub_6D4580(this=%p, unk=%x, size?=%x)\n", (void*)p_this, unused, size);
 				printf("g_bigass_arena->size_left= %d\n", (g_bigass_arena.buf_len - g_bigass_arena.curr_offset));
+				printf("arena_alloc >> 0x1C=%d\n", (uint32_t)p_this->ptr1->ptr3 >> 0x1C);
 #endif
 				return (uintptr_t)p_this->ptr1->ptr3;
 			//}

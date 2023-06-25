@@ -45,7 +45,7 @@ public:
     {
     }
 
-    virtual ~ModValue() override {};
+    virtual ~ModValue() = default;//override {};
 
     virtual void config_load(const utility::Config& cfg) override {
         auto v = cfg.get<T>(m_config_name);
