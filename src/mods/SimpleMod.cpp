@@ -43,7 +43,7 @@ void SimpleMod::on_draw_ui() {
 	if (ImGui::Button("SimpleMod Button")) {
 		int a1 = wew(03, vfx_index, 0, 8);
 		if (a1) {
-			CPlDante* pl = (CPlDante*)0x01C8A600;
+			CPlDante* pl = devil3_sdk::get_pl_dante();
 			int a2 = wew2(pl);
 			int colorama = ImGui::ColorConvertFloat4ToU32(ImVec4(col[0], col[1],col[2],col[3]));
 			__asm {

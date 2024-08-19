@@ -1,5 +1,7 @@
 set(MODS_SRC
     mods/SimpleMod.hpp
+    mods/RendererReplace.hpp
+    mods/RendererReplace.cpp
     mods/CustomAlolcator.hpp
     mods/CustomAlolcator.cpp
     mods/EnemySpawnRate.hpp
@@ -43,7 +45,8 @@ set(MODS_SRC
     mods/EnemyStepCooldown.cpp 
     mods/EnemyStates.hpp 
     mods/EnemyStates.cpp 
-
+    mods/AreaJump.hpp
+    mods/AreaJump.cpp
 )
 
 set(HOOKS_SRC
@@ -102,6 +105,8 @@ set(UTILITY_SRC
     utility/Thread.hpp
     utility/Thread.cpp
     utility/SDLGamepad.hpp
+    #utility/tgc.h
+    #utility/tgc.c
 )
 
 set(FRAMEWORK_SRC
@@ -137,7 +142,8 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 )
 
 #target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2)
+#target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 WickedEngine_Windows d3d12 dxgi)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer)
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})

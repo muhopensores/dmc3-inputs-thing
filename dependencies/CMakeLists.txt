@@ -40,3 +40,4 @@ add_library(imgui STATIC
 target_compile_definitions(imgui PUBLIC IMGUI_USER_CONFIG="../src/fw-imgui/imgui_imconfig.hpp")
 
 add_subdirectory(DebugDraw)
+add_subdirectory(meshoptimizer)

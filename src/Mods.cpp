@@ -23,6 +23,8 @@
 #include "mods/EnemyStates.hpp"
 #include "mods/EnemySpawnRate.hpp"
 #include "mods/CustomAlolcator.hpp"
+#include "mods/RendererReplace.hpp"
+#include "mods/AreaJump.hpp"
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
@@ -43,6 +45,7 @@ void Mods::load_time_critical_mods() {
 }
 
 void Mods::load_mods() {
+#if 1
 	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
 	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
@@ -60,9 +63,11 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
 	m_mods.emplace_back(std::make_unique<EnemySpawnRate>());
+	m_mods.emplace_back(std::make_unique<AreaJump>());
+#endif
 
 #ifndef _NDEBUG
-	m_mods.emplace_back(std::make_unique<PrintfDebugging>());
+	//m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG
 	//m_mods.emplace_back(std::make_unique<CameraHack>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
@@ -104,9 +109,11 @@ void Mods::on_draw_ui() const {
     for (auto& mod : m_mods) {
         mod->on_draw_ui();
     }
+    g_framework->m_rr->on_draw_ui();
 }
 
 void Mods::on_draw_custom_imgui_window() const {
+#if 0
 	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[6].get()); // epic footguns akimbo
 	InputLog* l = dynamic_cast<InputLog*>(m_mods[9].get()); // epic footguns akimbo part2
 	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[10].get()); // epic footguns akimbo part3
@@ -115,4 +122,5 @@ void Mods::on_draw_custom_imgui_window() const {
 	l->custom_imgui_window();
 	d->custom_imgui_window();
 	t->custom_imgui_window();
+#endif
 }

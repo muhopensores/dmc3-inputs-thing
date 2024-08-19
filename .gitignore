@@ -2,4 +2,5 @@ build86/
 lsp/
 compile_commands.json
 .clangd/
+.cache/
 src/Config.hpp

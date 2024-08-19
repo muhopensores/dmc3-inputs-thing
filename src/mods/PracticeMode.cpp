@@ -147,7 +147,7 @@ void PracticeMode::on_frame() {
 	
 	if (!(m_always_launch_tgl->value())) { g_should_launch = 0; return; }
 	
-	/*bool ground = Devil3SDK::pl_dante_is_grounded();*/
+	/*bool ground = devil3_sdk::pl_dante_is_grounded();*/
 	g_should_launch = !(*g_char_state_ptr == 11 || *g_char_state_ptr == 13);
 }
 // will show up in debug window, dump ImGui widgets you want here
@@ -158,9 +158,9 @@ void PracticeMode::on_draw_ui() {
 		return;
 	}
 	m_always_launch_tgl->draw("DMD always launch when on ground"); ImGui::SameLine();
-	ShowHelpMarker("Always launch enemies when you are standing on the ground to practice air DMD combos");
+	show_help_marker("Always launch enemies when you are standing on the ground to practice air DMD combos");
 	m_overlay_enabled->draw("Enable practice overlay"); ImGui::SameLine();
-	ShowHelpMarker("Move overlay window into your prefered location by dragging");
+	show_help_marker("Move overlay window into your prefered location by dragging");
 }
 
 /*

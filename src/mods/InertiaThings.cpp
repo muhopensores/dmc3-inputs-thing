@@ -100,7 +100,7 @@ std::optional<std::string> InertiaThings::on_initialize() {
 }
 
 static void debug_log_anim(const char* function) {
-	short cur_anim = Devil3SDK::pl_dante_get_human_anim_table()->current_anim;
+	short cur_anim = devil3_sdk::pl_dante_get_human_anim_table()->current_anim;
 	printf("[%s] have this current_anim:(%d)\n", function, cur_anim);
 }
 
@@ -135,7 +135,7 @@ void InertiaThings::on_draw_ui() {
 	ImGui::Checkbox("Show debug stats", &m_stats);
 	if (m_stats) {
 		ImGui::Text("cached_vel: %f", chached_velocity);
-		CPlDante* c_pl_dante = Devil3SDK::get_pl_dante();
+		CPlDante* c_pl_dante = devil3_sdk::get_pl_dante();
 
 		if (c_pl_dante) {
 			ImGui::Text("Player data:");
@@ -150,7 +150,7 @@ void InertiaThings::on_draw_ui() {
 			ImGui::Text("someOtherdirection: %d", c_pl_dante->someOtherDirection);
 
 		}
-		auto human_atbl = Devil3SDK::pl_dante_get_human_anim_table();
+		auto human_atbl = devil3_sdk::pl_dante_get_human_anim_table();
 		ImGui::Text("Animation data:");
 		ImGui::Text("current_anim: %d", human_atbl->current_anim);
 		ImGui::Text("bank_id: %d", human_atbl->bank_id);
@@ -160,7 +160,7 @@ void InertiaThings::on_draw_ui() {
 		ImGui::Text("anim_frame: %f", human_atbl->anim_frame);
 		ImGui::Text("loop_point: %f", human_atbl->loop_point);
 
-		auto dt1_atbl = Devil3SDK::pl_dante_get_dt1_anim_table();
+		auto dt1_atbl = devil3_sdk::pl_dante_get_dt1_anim_table();
 		ImGui::Text("DT1 Animation data:");
 		ImGui::Text("bank_id: %d", dt1_atbl->bank_id);
 		ImGui::Text("motion: %d", dt1_atbl->motion_id);
@@ -169,7 +169,7 @@ void InertiaThings::on_draw_ui() {
 		ImGui::Text("anim_frame: %f", dt1_atbl->anim_frame);
 		ImGui::Text("loop_point: %f", dt1_atbl->loop_point);
 
-		auto dt2_atbl = Devil3SDK::pl_dante_get_dt2_anim_table();
+		auto dt2_atbl = devil3_sdk::pl_dante_get_dt2_anim_table();
 		ImGui::Text("DT2 Animation data:");
 		ImGui::Text("bank_id: %d", dt2_atbl->bank_id);
 		ImGui::Text("motion: %d", dt2_atbl->motion_id);
@@ -217,16 +217,16 @@ void __fastcall InertiaThings::plr_veloicty_set_sub_5A6210_internal(CPlDante * p
 	_set_velocity orig_fn = (_set_velocity)m_vel_set_hook->get_original();
 	orig_fn(p_this, vel_m, vel_d);
 
-	if (!Devil3SDK::pl_dante_is_grounded() || !Devil3SDK::pl_dante_is_air()) { 
+	if (!devil3_sdk::pl_dante_is_grounded() || !devil3_sdk::pl_dante_is_air()) { 
 		chached_velocity = 0.0f;
 		return; 
 	}
 	
 	auto predicate = [](MOTION_ID id) { 
-		return Devil3SDK::pl_dante_check_animation_id(id);
+		return devil3_sdk::pl_dante_check_animation_id(id);
 	};
 
-	if (Devil3SDK::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
+	if (devil3_sdk::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
 		if (p_this->momentumMagnitude > 0.01f) {
 			chached_velocity = p_this->momentumMagnitude;
 		}
@@ -247,7 +247,7 @@ void __fastcall InertiaThings::plr_veloicty_set_sub_5A6210_internal(CPlDante * p
 #endif
 
 	check = std::any_of(m_moves_dont_touch.begin(), m_moves_dont_touch.end(), predicate);
-	if (check || Devil3SDK::pl_dante_is_air()) { return; }
+	if (check || devil3_sdk::pl_dante_is_air()) { return; }
 
 	/*auto predicate = [](MOTION_ID id) { return id == uass.current_anim;	};
 	const bool check = std::any_of(m_moves_dont_touch.begin(), m_moves_dont_touch.end(), predicate);
@@ -281,7 +281,7 @@ void __fastcall InertiaThings::plr_velocity_zero_sub_5A6230_internal(CPlDante * 
 	};*/
 
 	auto predicate = [](MOTION_ID id) { 
-		return Devil3SDK::pl_dante_check_animation_id(id);	
+		return devil3_sdk::pl_dante_check_animation_id(id);	
 	};
 
 	const bool check = std::any_of(m_moves_should_zero.begin(), m_moves_should_zero.end(), predicate);
@@ -313,8 +313,8 @@ void __fastcall InertiaThings::plr_velocity_lookup_table_something_sub_5A4CB0_in
 	debug_log_anim(__FUNCTION__);
 #endif
 
-	auto predicate = [](MOTION_ID id) { return Devil3SDK::pl_dante_check_animation_id(id); };
-	if (Devil3SDK::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
+	auto predicate = [](MOTION_ID id) { return devil3_sdk::pl_dante_check_animation_id(id); };
+	if (devil3_sdk::pl_dante_check_animation_id(MOTION_ID::AIR_HIKE)) {
 		if (chached_velocity > 0.01f) {
 			chached_velocity = p_this->momentumMagnitude;
 		}

@@ -34,7 +34,20 @@ LONG WINAPI reframework::global_exception_handler(struct _EXCEPTION_POINTERS* ei
     const auto module_within = utility::get_module_within(ei->ContextRecord->Eip);
 
     if (module_within) {
-
+#if 0
+        if (*module_within == g_framework->get_module()) {
+            printf("Attempting to fix capcom pointer crash\n");
+            ei->ContextRecord->Ecx = get_reg(ei->ContextRecord->Ecx);
+            ei->ContextRecord->Edx = get_reg(ei->ContextRecord->Edx);
+            ei->ContextRecord->Eax = get_reg(ei->ContextRecord->Eax);
+            ei->ContextRecord->Ebx = get_reg(ei->ContextRecord->Ebx);
+            ei->ContextRecord->Ebp = get_reg(ei->ContextRecord->Ebp);
+            ei->ContextRecord->Esi = get_reg(ei->ContextRecord->Esi);
+            ei->ContextRecord->Edi = get_reg(ei->ContextRecord->Edi);
+            ei->ContextRecord->Eip -= 5;
+            return EXCEPTION_CONTINUE_EXECUTION;
+        }
+#endif
         const auto module_path = utility::get_module_path(*module_within);
 
         if (module_path) {
@@ -100,5 +113,5 @@ LONG WINAPI reframework::global_exception_handler(struct _EXCEPTION_POINTERS* ei
 }
 
 void reframework::setup_exception_handler() {
-    //SetUnhandledExceptionFilter(global_exception_handler);
+    SetUnhandledExceptionFilter(global_exception_handler);
 }

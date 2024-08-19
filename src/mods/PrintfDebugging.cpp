@@ -22,7 +22,7 @@ static __declspec(naked) void log_detour1() {
 std::optional<std::string> PrintfDebugging::on_initialize() {
   // uintptr_t base = g_framework->get_module().as<uintptr_t>();
 	//TODO(): wip
-#if 0
+#if 1
   if (!install_hook_absolute(0x004023CF, m_debug_log_hook1, &log_detour1, &g_log_printf1, 5)) {
     spdlog::error("[{}] failed to initialize", get_name());
     return "Failed to initialize PrintfDebugging";

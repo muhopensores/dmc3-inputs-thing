@@ -4,10 +4,9 @@
 
 #include <Windowsx.h>
 
-
 // ours with XInput removed
-#include "fw-imgui/imgui_impl_win32.h"
 #include "fw-imgui/imgui_impl_dx9.h"
+#include "fw-imgui/imgui_impl_win32.h"
 
 #include "utility/Module.hpp"
 
@@ -21,17 +20,16 @@
 
 #include "PromptFontCompressed.cpp"
 #include "PromptFontGlyphs.hpp"
-#include "utility/Thread.hpp"
 #include "utility/ExceptionHandler.hpp"
+#include "utility/Thread.hpp"
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 std::unique_ptr<ModFramework> g_framework{};
 
 ModFramework::ModFramework()
-    : m_game_module{ GetModuleHandle(0) },
-    m_logger{ spdlog::basic_logger_mt("ModFramework", LOG_FILENAME, true) }
-{
+    : m_game_module{GetModuleHandle(0)},
+      m_logger{spdlog::basic_logger_mt("ModFramework", LOG_FILENAME, true)} {
     spdlog::set_default_logger(m_logger);
     spdlog::flush_on(spdlog::level::info);
     spdlog::info(LOG_ENTRY);
@@ -39,8 +37,8 @@ ModFramework::ModFramework()
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::debug);
 #endif
-	// WARNING(): i hacked on init for time critical stuff here
-	// TimeCritical init stuff
+    // WARNING(): i hacked on init for time critical stuff here
+    // TimeCritical init stuff
 #if 0
 	std::thread init_thread([this]() {
 		m_mods = std::make_unique<Mods>();
@@ -72,20 +70,19 @@ ModFramework::ModFramework()
     if (e) {
         if (e->empty()) {
             m_error = "An unknown error has occurred.";
-        }
-        else {
+        } else {
             m_error = *e;
         }
     }
     utils::ResumeThreads(threads);
     FunctionHook::set_mh_skip_locks(FALSE);
 #endif
-	/*std::this_thread::sleep_for(std::chrono::seconds(1));*/
+    /*std::this_thread::sleep_for(std::chrono::seconds(1));*/
 
     m_d3d9_hook = std::make_unique<D3D9Hook>();
 
-	m_d3d9_hook->on_reset    ([this](D3D9Hook& hook) { on_reset(); });
-	m_d3d9_hook->on_end_scene([this](D3D9Hook& hook) { on_frame(); });
+    m_d3d9_hook->on_reset([this](D3D9Hook& hook) { on_reset(); });
+    m_d3d9_hook->on_end_scene([this](D3D9Hook& hook) { on_frame(); });
 
     m_valid = m_d3d9_hook->hook();
 
@@ -95,33 +92,28 @@ ModFramework::ModFramework()
 }
 
 ModFramework::~ModFramework() {
-
 }
 
-void SetVisibleCursorWINAPI(bool visible)
-{
+void set_visible_cursor_winapi(bool visible) {
 
-	CURSORINFO info = { sizeof(CURSORINFO), 0, nullptr, {} };
-	if (!GetCursorInfo(&info))
-	{
-		throw std::system_error(std::error_code(static_cast<int>(GetLastError()), std::system_category()), "GetCursorInfo");
-	}
+    CURSORINFO info = {sizeof(CURSORINFO), 0, nullptr, {}};
+    if (!GetCursorInfo(&info)) {
+        throw std::system_error(std::error_code(static_cast<int>(GetLastError()), std::system_category()), "GetCursorInfo");
+    }
 
-	bool isvisible = (info.flags & CURSOR_SHOWING) != 0;
-	if (isvisible != visible)
-	{
-		ShowCursor(visible);
-	}
+    bool isvisible = (info.flags & CURSOR_SHOWING) != 0;
+    if (isvisible != visible) {
+        ShowCursor(visible);
+    }
 }
 
-static bool IsCursorVisibleWINAPI() {
-	CURSORINFO info = { sizeof(CURSORINFO), 0, nullptr, {} };
-	if (!GetCursorInfo(&info))
-	{
-		throw std::exception("GetCursorInfo");
-	}
+static bool is_cursor_visible_winapi() {
+    CURSORINFO info = {sizeof(CURSORINFO), 0, nullptr, {}};
+    if (!GetCursorInfo(&info)) {
+        throw std::exception("GetCursorInfo");
+    }
 
-	return (info.flags & CURSOR_SHOWING) != 0;
+    return (info.flags & CURSOR_SHOWING) != 0;
 }
 
 void ModFramework::on_frame() {
@@ -138,15 +130,18 @@ void ModFramework::on_frame() {
         return;
     }
 
-	//SetVisibleCursorWINAPI(m_draw_ui);
+    // SetVisibleCursorWINAPI(m_draw_ui);
 
-	ImGui_ImplDX9_NewFrame();
+    ImGui_ImplDX9_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_frame();
-		m_mods->on_draw_custom_imgui_window();
+        m_mods->on_draw_custom_imgui_window();
+        if (m_draw_debug_ui) {
+            m_mods->on_draw_debug_ui();
+        }
     }
 
     draw_ui();
@@ -154,25 +149,27 @@ void ModFramework::on_frame() {
     ImGui::EndFrame();
     ImGui::Render();
 
-	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+    ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 
-    //ID3D11DeviceContext* context = nullptr;
-    //m_d3d11_hook->get_device()->GetImmediateContext(&context);
+    // ID3D11DeviceContext* context = nullptr;
+    // m_d3d11_hook->get_device()->GetImmediateContext(&context);
 
-    //context->OMSetRenderTargets(1, &m_main_render_target_view, NULL);
+    // context->OMSetRenderTargets(1, &m_main_render_target_view, NULL);
 
-    //ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+    // ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 }
 
 void ModFramework::on_reset() {
     spdlog::info("Reset!");
-	if (!m_initialized) { return; }
-	ImGui_ImplDX9_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui_ImplDX9_InvalidateDeviceObjects();
-	//ImGui_ImplDX9_InvalidateDeviceObjects();
+    if (!m_initialized) {
+        return;
+    }
+    ImGui_ImplDX9_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui_ImplDX9_InvalidateDeviceObjects();
+    // ImGui_ImplDX9_InvalidateDeviceObjects();
     // Crashes if we don't release it at this point.
-    //cleanup_render_target();
+    // cleanup_render_target();
     m_initialized = false;
 }
 
@@ -182,37 +179,37 @@ bool ModFramework::on_message(HWND wnd, UINT message, WPARAM w_param, LPARAM l_p
         return true;
     }
 
-	if (message == WM_KILLFOCUS) {
-		printf("WINDOW Killfocus\n");
-		m_window_focused = false;
-	}
-	if (message == WM_SETFOCUS) {
-		printf("WINDOW Setfocus\n");
-		m_window_focused = true;
-	}
+    if (message == WM_KILLFOCUS) {
+        printf("WINDOW Killfocus\n");
+        m_window_focused = false;
+    }
+    if (message == WM_SETFOCUS) {
+        printf("WINDOW Setfocus\n");
+        m_window_focused = true;
+    }
 
-	if (message == WM_KEYDOWN) {
-		
-		m_last_key = w_param;
+    if (message == WM_KEYDOWN) {
 
-		if (w_param == VK_INSERT) {
-			m_draw_ui = !m_draw_ui;
-		}
-		if (w_param == UIButton::ui_button_get_wparam()) {
-			m_draw_ui = !m_draw_ui;
-		}
-	}
-	/*if (message == WM_MOUSEMOVE) {
-		m_draw_cursor = true;
-		int cur_x = GET_X_LPARAM(l_param);
-		int cur_y = GET_Y_LPARAM(l_param);
+        m_last_key = w_param;
 
-		m_mouse_x_dt = cur_x - m_mouse_x;
-		m_mouse_y_dt = cur_y - m_mouse_y;
-		m_mouse_x = cur_x;
-		m_mouse_y = cur_y;
-		m_last_mouse_move_timestamp = std::chrono::high_resolution_clock::now();
-	}*/
+        if (w_param == VK_INSERT) {
+            m_draw_ui = !m_draw_ui;
+        }
+        if (w_param == UIButton::ui_button_get_wparam()) {
+            m_draw_ui = !m_draw_ui;
+        }
+    }
+    /*if (message == WM_MOUSEMOVE) {
+            m_draw_cursor = true;
+            int cur_x = GET_X_LPARAM(l_param);
+            int cur_y = GET_Y_LPARAM(l_param);
+
+            m_mouse_x_dt = cur_x - m_mouse_x;
+            m_mouse_y_dt = cur_y - m_mouse_y;
+            m_mouse_x = cur_x;
+            m_mouse_y = cur_y;
+            m_last_mouse_move_timestamp = std::chrono::high_resolution_clock::now();
+    }*/
 
     if (m_draw_ui && ImGui_ImplWin32_WndProcHandler(wnd, message, w_param, l_param) != 0) {
         // If the user is interacting with the UI we block the message from going to the game.
@@ -259,16 +256,15 @@ void ModFramework::save_config() {
 }
 
 void ModFramework::draw_ui() {
-    //std::lock_guard _{ m_input_mutex };
+    // std::lock_guard _{ m_input_mutex };
 
     if (!m_draw_ui) {
-        //m_dinput_hook->acknowledge_input();
-        //ImGui::GetIO().MouseDrawCursor = false;
+        // m_dinput_hook->acknowledge_input();
+        // ImGui::GetIO().MouseDrawCursor = false;
         return;
     }
 
     auto& io = ImGui::GetIO();
-
 
     ImGui::SetNextWindowPos(ImVec2(50, 50), ImGuiCond_::ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(410, 600), ImGuiCond_::ImGuiCond_Once);
@@ -276,23 +272,25 @@ void ModFramework::draw_ui() {
     ImGui::Begin("ModFramework", &m_draw_ui);
 
 #ifdef GIT_HASH
-	ImGui::Text("Version: %s", GIT_HASH);
-	ImGui::Text("Date: %s", GIT_DATE);
+    ImGui::Text("Version: %s", GIT_HASH);
+    ImGui::Text("Date: %s", GIT_DATE);
 #endif
     ImGui::Text("Menu Key: Insert");
-	
-	if (ImGui::Button("Save config")) {
-		save_config();
-	}
+
+    if (ImGui::Button("Save config")) {
+        save_config();
+    };
+    ImGui::SameLine();
+
+    ImGui::Checkbox("Draw debug window", &m_draw_debug_ui);
+
     draw_about();
 
     if (m_error.empty() && m_game_data_initialized) {
         m_mods->on_draw_ui();
-    }
-    else if (!m_game_data_initialized) {
+    } else if (!m_game_data_initialized) {
         ImGui::TextWrapped("ModFramework is currently initializing...");
-    }
-    else if(!m_error.empty()) {
+    } else if (!m_error.empty()) {
         ImGui::TextWrapped("ModFramework error: %s", m_error.c_str());
     }
 
@@ -307,18 +305,18 @@ void ModFramework::draw_about() {
     ImGui::TreePush("About");
 
     ImGui::Text("Authors: Siyan, endneo, cheburrat0r, deepdarkkapustka");
-	ImGui::Text("https://github.com/muhopensores/dmc3-inputs-thing/");
-	ImGui::NewLine();
+    ImGui::Text("https://github.com/muhopensores/dmc3-inputs-thing/");
+    ImGui::NewLine();
     ImGui::Text("Inspired by RE2Framework/Kanan project.");
     ImGui::Text("https://github.com/praydog/RE2-Mod-Framework");
     ImGui::Text("https://github.com/cursey/kanan-new");
 
     if (ImGui::CollapsingHeader("Licenses")) {
         ImGui::TreePush("Licenses");
-		
-		if (ImGui::CollapsingHeader("PromptFont")) {
-			ImGui::TextWrapped(license::prompt_font);
-		}
+
+        if (ImGui::CollapsingHeader("PromptFont")) {
+            ImGui::TextWrapped(license::prompt_font);
+        }
 
         if (ImGui::CollapsingHeader("glm")) {
             ImGui::TextWrapped(license::glm);
@@ -347,7 +345,7 @@ bool ModFramework::initialize() {
         return true;
     }
 #ifdef NDEBUG
-    //reframework::setup_exception_handler();
+    // reframework::setup_exception_handler();
 #endif
 
     spdlog::info("Attempting to initialize");
@@ -360,22 +358,21 @@ bool ModFramework::initialize() {
         return false;
     }
 
-	D3DDEVICE_CREATION_PARAMETERS devParams{ 0 };
-	auto hr = device->GetCreationParameters(&devParams);
-	if (SUCCEEDED(hr)) {
-		if (devParams.hFocusWindow) {
-			spdlog::info("[D3D Device init] D3DDEVICE_CREATION_PARAMETERS hFocusWindow={0:x}\n", (void*)devParams.hFocusWindow);
-			m_wnd = devParams.hFocusWindow;
-		}
-		else {
-			spdlog::info("[D3D Device present] D3DDEVICE_CREATION_PARAMETERS hFocusWindow= is NULL\n");
-			return false;
-		}
-	}
+    D3DDEVICE_CREATION_PARAMETERS dev_params{0};
+    auto hr = device->GetCreationParameters(&dev_params);
+    if (SUCCEEDED(hr)) {
+        if (dev_params.hFocusWindow) {
+            spdlog::info("[D3D Device init] D3DDEVICE_CREATION_PARAMETERS hFocusWindow={0:x}\n", (void*)dev_params.hFocusWindow);
+            m_wnd = dev_params.hFocusWindow;
+        } else {
+            spdlog::info("[D3D Device present] D3DDEVICE_CREATION_PARAMETERS hFocusWindow= is NULL\n");
+            return false;
+        }
+    }
 
     // Explicitly call destructor first
     m_windows_message_hook.reset();
-    m_windows_message_hook = std::make_unique<WindowsMessageHook>(m_wnd);
+    m_windows_message_hook             = std::make_unique<WindowsMessageHook>(m_wnd);
     m_windows_message_hook->on_message = [this](auto wnd, auto msg, auto wParam, auto lParam) {
         return on_message(wnd, msg, wParam, lParam);
     };
@@ -391,10 +388,6 @@ bool ModFramework::initialize() {
     }
 #endif
 #endif
-
-    //spdlog::info("Creating render target");
-
-    //create_render_target();
 
     spdlog::info("Window Handle: 0x{0:x}", (uintptr_t)m_wnd);
     spdlog::info("Initializing ImGui");
@@ -416,11 +409,13 @@ bool ModFramework::initialize() {
         return false;
     }
 
-	// NOTE(): this font stuff needs to be done on init
-	static const ImWchar icons_ranges[] = { 0x20, 0xFF, ICON_MIN_PF, ICON_MAX_PF, 0 }; // Will not be copied by AddFont* so keep in scope.
-	auto io = ImGui::GetIO();
-	io.Fonts->AddFontDefault();
-	m_prompt_font = io.Fonts->AddFontFromMemoryCompressedTTF(PFont_compressed_data, PFont_compressed_size, 32.0f, NULL, icons_ranges);
+    // NOTE(): this font stuff needs to be done on init
+    static const ImWchar icons_ranges[] = {0x20, 0xFF, ICON_MIN_PF, ICON_MAX_PF, 0}; // Will not be copied by AddFont* so keep in scope.
+
+    auto io = ImGui::GetIO();
+    io.Fonts->AddFontDefault();
+    m_prompt_font = io.Fonts->AddFontFromMemoryCompressedTTF(PFont_compressed_data, PFont_compressed_size, 32.0f, NULL, icons_ranges);
+
     ImGui::StyleColorsDark();
 
     if (m_first_frame) {
@@ -430,15 +425,14 @@ bool ModFramework::initialize() {
 
         // Game specific initialization stuff
         std::thread init_thread([this]() {
-            //m_mods = std::make_unique<Mods>();
-			m_mods->load_mods();
+            // m_mods = std::make_unique<Mods>();
+            m_mods->load_mods();
             auto e = m_mods->on_initialize();
 
             if (e) {
                 if (e->empty()) {
                     m_error = "An unknown error has occurred.";
-                }
-                else {
+                } else {
                     m_error = *e;
                 }
             }
@@ -468,4 +462,3 @@ void ModFramework::cleanup_render_target() {
         m_main_render_target_view = nullptr;
     }*/
 }
-

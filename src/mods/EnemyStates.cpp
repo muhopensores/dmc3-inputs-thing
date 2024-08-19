@@ -193,7 +193,7 @@ void EnemyStates::on_draw_ui() {
 // do something every frame
 void EnemyStates::on_frame() {
 	if (hotkey_enabled) {
-		// uint16_t input = Devil3SDK::get_buttons_pressed();
+		// uint16_t input = devil3_sdk::get_buttons_pressed();
 		// uint8_t inputByte1 = *(uint8_t*)0x01C8EFF4;
 		// uint8_t inputByte2 = *(uint8_t*)0x01C8EFF5;
 		// if (input != g_prev_input && input) {

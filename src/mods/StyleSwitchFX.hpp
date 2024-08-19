@@ -33,6 +33,11 @@ private:
   void* m_sound_file_mem;
   unsigned int m_sound_file_mem_size;
   void play_sound();
+  void change_texture(int style);
   //VoxObj* //m_vox = nullptr;
   //bool m_3d_audio = false;
 };
+
+extern std::mutex g_style_switch_mutex;
+void style_switch_efx_clear_textures();
+void style_switch_efx_load_textures();

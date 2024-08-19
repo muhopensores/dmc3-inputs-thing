@@ -30,7 +30,7 @@ static bool g_show_releases = false;
 static bool g_show_rg_window = false;
 
 static void my_rg_release_callback() {
-    static CPlDante* pl = Devil3SDK::get_pl_dante();
+    static CPlDante* pl = devil3_sdk::get_pl_dante();
     g_dif = pl->release_timer / 1.20f;
     g_release_lock = 8;
 }
@@ -111,7 +111,7 @@ float inverse_smoothstep(float x) {
 static float g_release_timer_back = 0.0f;
 
 void RgTimer::on_frame() {
-	static CPlDante* pl = Devil3SDK::get_pl_dante();
+	static CPlDante* pl = devil3_sdk::get_pl_dante();
 	if (*(uint32_t*)pl == 0x744D38) {
 		g_pl_block_timer = pl->block_timer;
         //printf("[%d] release_timer=%f\n", g_frame, pl->release_timer);
@@ -282,7 +282,7 @@ void RgTimer::custom_imgui_window() {
 		ImGui::PopID();
 	}
 #endif
-    static CPlDante* pl = Devil3SDK::get_pl_dante();
+    static CPlDante* pl = devil3_sdk::get_pl_dante();
 
 	ImGui::Text("difference guard: %d frames", g_guard_frame - g_input_guard_frame);
 	ImGui::Text("difference release: %f frames", g_dif);
@@ -295,7 +295,7 @@ void RgTimer::custom_imgui_window() {
 
     ImGui::Checkbox("Show releases on timeline", &g_show_releases);
 #if 0
-    static CPlDante* pl = Devil3SDK::get_pl_dante();
+    static CPlDante* pl = devil3_sdk::get_pl_dante();
     ImGui::Text("pl_release_timer: %f", pl->release_timer);
     ImGui::Text("g_dif %f", g_dif);
     ImGui::Text("g_release_lock %d", g_release_lock);

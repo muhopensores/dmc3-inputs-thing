@@ -12,6 +12,9 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/glm)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/DebugDraw)
+include_directories(${CMAKE_SOURCE_DIR}/dependencies/meshoptimizer/src)
+#temp
+include_directories(${CMAKE_SOURCE_DIR}/dependencies/WickedEngine)
 
 include_directories($ENV{DXSDK_DIR}/Include)
 link_directories("$ENV{DXSDK_DIR}/Lib/x86")
@@ -33,25 +36,6 @@ endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
 # Disable exceptions
 # string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-find_package(Git)
-if (Git_FOUND)
-  execute_process(COMMAND
-          "${GIT_EXECUTABLE}" log -1 --pretty=\"%h\"
-          WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-          OUTPUT_VARIABLE GIT_COMMIT_HASH
-          ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  execute_process(COMMAND
-          "${GIT_EXECUTABLE}" log -1 --date short --pretty=\"%ad\"
-          WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-          OUTPUT_VARIABLE GIT_COMMITTER_DATE
-  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
-  set(GIT_HASH ${GIT_COMMIT_HASH})
-  set(GIT_DATE ${GIT_COMMITTER_DATE})
-else()
-  set(GIT_HASH "install_git_exe_bro")
-  set(GIT_DATE "really")
-endif()
 
 set(LOG_FILENAME "${CMAKE_PROJECT_NAME}_framework_log.txt")
 set(LOG_ENTRY "${CMAKE_PROJECT_NAME} ModFramework entry")

@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 class Mods;
+class Mod;
 
 #include "D3D9Hook.hpp"
 #include "WindowsMessageHook.hpp"
@@ -63,6 +64,7 @@ public:
 
     void save_config();
 
+    Mod* m_rr;
 private:
     void draw_ui();
     void draw_about();
@@ -77,6 +79,12 @@ private:
     bool m_draw_ui{ false };
 	bool m_draw_cursor{ true };
 	bool m_window_focused{ true };
+#ifndef NDEBUG
+    bool m_draw_debug_ui{ true };
+#else
+    bool m_draw_debug_ui{ false };
+#endif // !NDEBUG
+
     std::atomic<bool> m_game_data_initialized{ false };
 
     std::mutex m_input_mutex{};

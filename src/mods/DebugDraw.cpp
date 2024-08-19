@@ -12,11 +12,13 @@
 
 bool g_enabled = false;
 constexpr int STRIDE_MAGIC = 6;
+static float g_overlay_opacity = 0.88f;
+
 using Microsoft::WRL::ComPtr;
 
 std::optional<Vector2> world_to_screen(const Vector3f& world_pos) {
 #if 0
-	cCameraCtrl* camera = Devil3SDK::get_cam_ctrl();
+	cCameraCtrl* camera = devil3_sdk::get_cam_ctrl();
 	auto& transform = camera->transform;
 	auto right = Vector3f{ transform[0][0], transform[0][1], transform[0][2] };
 	auto up = Vector3f{ transform[1][0], transform[1][1], transform[1][2] };
@@ -24,7 +26,7 @@ std::optional<Vector2> world_to_screen(const Vector3f& world_pos) {
 	auto origin = Vector3f{ transform[3][0], transform[3][1], transform[3][2] };
 	auto delta = world_pos - origin;
 
-	Vector2f window = Devil3SDK::get_window_dimensions();
+	Vector2f window = devil3_sdk::get_window_dimensions();
 
 	float z = glm::dot(forward, delta);
 	if (z <= 0.0f) {
@@ -45,10 +47,10 @@ std::optional<Vector2> world_to_screen(const Vector3f& world_pos) {
 
 	return Vector2{ (int)((1.0f + x) * width * 0.5f), (int)((1.0f - y) * height * 0.5f) };
 #else
-	cCameraCtrl* camera = Devil3SDK::get_cam_ctrl();
+	cCameraCtrl* camera = devil3_sdk::get_cam_ctrl();
 	if (!camera || camera == (cCameraCtrl*)-1) { return Vector2{ 0.0f, 0.0f }; };
 
-	Vector2f window = Devil3SDK::get_window_dimensions();
+	Vector2f window = devil3_sdk::get_window_dimensions();
 	
 	float near_plane = 0.1f; //nearest distance from which you can see
 	float far_plane  = 100.f; //you cant see more
@@ -177,7 +179,7 @@ public:
                     ImColor(
                     (int)(lines[v].line.r * 255.0f),
                         (int)(lines[v].line.g * 255.0f),
-                        (int)(lines[v].line.b * 255.0f), 64), 0, 0.5f);
+                        (int)(lines[v].line.b * 255.0f), 64), 0, g_overlay_opacity);
             
 			//draw_list->AddLine(p1, p2, ImColor((int)(lines[v].line.r * 255.0f), (int)(lines[v].line.g * 255.0f), (int)(lines[v].line.b * 255.0f), 64), 0.06f);
 			//draw_list->PathLineTo(p2);
@@ -330,7 +332,7 @@ std::optional<std::string> DebugDraw::on_initialize() {
 void DebugDraw::custom_imgui_window()
 {
 	if (!g_enabled) { return; }
-	CPlDante* pl = Devil3SDK::get_pl_dante();
+	CPlDante* pl = devil3_sdk::get_pl_dante();
 	// keeping capcom traditions of typoing member fields like a motehfckure
 	auto screen = world_to_screen(pl->Poistion);
 	if (!screen.has_value()) { return; }
@@ -339,6 +341,14 @@ void DebugDraw::custom_imgui_window()
 	dd::sphere(dd_context, origin, dd::colors::Blue, 10.0f);
 	//dd::point(dd_context, origin, dd::colors::Crimson, 15.0f);
 	dd::flush(dd_context, ImGui::GetIO().DeltaTime);
+}
+
+void DebugDraw::on_config_load(const utility::Config& cfg) {
+	g_overlay_opacity = cfg.get<float>("DebugDrawOverlayOpacity").value_or(0.88f);
+}
+
+void DebugDraw::on_config_save(utility::Config& cfg) {
+	cfg.set<float>("DebugDrawOverlayOpacity", g_overlay_opacity);
 }
 
 // during load
@@ -361,8 +371,7 @@ void DebugDraw::custom_imgui_window()
 void DebugDraw::on_draw_ui() {
   if (ImGui::CollapsingHeader("Hitspheres")) {
     ImGui::Checkbox("debug draw hitspheres", &g_enabled);
-    /*ImGui::Checkbox("g_invert_forward", &g_invert_forward);
-    ImGui::InputFloat("fov", &g_fov, 0.01f);*/
+    ImGui::InputFloat("debug overlay opacity", &g_overlay_opacity, 0.01f);
   }
 
 }

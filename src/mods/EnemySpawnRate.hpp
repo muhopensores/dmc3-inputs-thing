@@ -32,13 +32,14 @@ public:
   // you are in the imgui window here.
   void on_draw_ui() override;
   // on_draw_debug_ui() is called when debug window shows up
-  //void on_draw_debug_ui() override;
+  void on_draw_debug_ui() override;
 protected:
 	uintptr_t __fastcall spawn_a_guy_sub_54ED10_internal(uintptr_t p_this, float* a2, uintptr_t a3);
 	static uintptr_t __fastcall spawn_a_guy_sub_54ED10(uintptr_t p_this, float* a2, uintptr_t a3);
 
 private:
 	std::unique_ptr<FunctionHook> m_spawn_guy_hook;
+	std::unique_ptr<FunctionHook> m_collision_handles_hook;
   // function hook instance for our detour, convinient wrapper 
   // around minhook
   // std::unique_ptr<FunctionHook> m_function_hook;

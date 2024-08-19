@@ -102,7 +102,7 @@ void InputLog::on_config_save(utility::Config &cfg) {
 void InputLog::on_frame() {
 	if (!m_enabled->value()) { return; }
 
-	uint16_t input = Devil3SDK::get_buttons_pressed();
+	uint16_t input = devil3_sdk::get_buttons_pressed();
 
 	if (input != g_prev_input && input) {
 		
