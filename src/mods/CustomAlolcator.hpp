@@ -85,3 +85,5 @@ protected:
 };
 
 extern bool g_mem_patch_applied;
+
+bool find_pe_section_init_arena() noexcept;

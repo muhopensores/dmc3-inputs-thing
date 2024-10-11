@@ -362,7 +362,7 @@ bool ModFramework::initialize() {
     auto hr = device->GetCreationParameters(&dev_params);
     if (SUCCEEDED(hr)) {
         if (dev_params.hFocusWindow) {
-            spdlog::info("[D3D Device init] D3DDEVICE_CREATION_PARAMETERS hFocusWindow={0:x}\n", (void*)dev_params.hFocusWindow);
+            spdlog::info("[D3D Device init] D3DDEVICE_CREATION_PARAMETERS hFocusWindow={}\n", (uintptr_t)dev_params.hFocusWindow);
             m_wnd = dev_params.hFocusWindow;
         } else {
             spdlog::info("[D3D Device present] D3DDEVICE_CREATION_PARAMETERS hFocusWindow= is NULL\n");

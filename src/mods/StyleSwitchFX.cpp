@@ -6,14 +6,18 @@
 
 static CPlDante* g_char_ptr     = nullptr;
 static cCameraCtrl* g_cam_ptr   = nullptr;
+#if 0 // TODO coat textures
 static Devil3Texture* g_texture = nullptr;
 static IDirect3DTexture9* g_texture_original = nullptr;
+#endif
 
 std::mutex g_style_switch_mutex {};
 
+#if 0
 static constexpr void* GET_PL_DANTE_TEXTURE_DECODE() {
 	return (void*)0x024F9640;
 }
+#endif
 
 #ifdef SND_HACK
 #define SND_CREATE_VOX(name) VoxObj* name()
@@ -33,8 +37,10 @@ static int       prev_style;
 static int*      current_style = (int*)0xB6B220;
 static bool      g_enable_mod;
 static bool      g_enable_sound;
+#if 0 // TODO coat textures
 static bool      g_enable_textures;
 static bool      g_textures_not_found{false};
+#endif
 static uintptr_t detour_jmpback;
 
 struct SfxPreset {
@@ -61,8 +67,8 @@ struct VfxPreset {
 };
 
 std::array vfx_presets = {
-    VfxPreset { "Crazy Combo fx",  144, 3, 8 },
     VfxPreset { "Circly thing fx", 218, 3, 8 },
+    VfxPreset { "Crazy Combo fx",  144, 3, 8 },
     VfxPreset { "DT fx",          0xDC, 3, 8 },
 };
 
@@ -92,7 +98,9 @@ static std::array<glm::vec4, STYLE_MAX> g_style_colors{
 	glm::vec4(0.941f, 0.065f, 0.658,  1.0f), // german word
 };
 
+#if 0
 static std::array<IDirect3DTexture9*, DANTE_STYLES::STYLE_MAX> g_style_textures {};
+#endif
 
 static void play_effect(int style) {
 	typedef int(__cdecl* cEffectBase_sub_67FE80)(char a1, int a2, int *a3, int a4);
@@ -146,6 +154,7 @@ static __declspec(naked) void detour() {
 // clang-format on
 #endif
 
+#if 0 // TODO coat textures
 void style_switch_efx_clear_textures() {
     if(!g_enable_textures) {return;}
     auto device = g_framework->get_d3d9_device();
@@ -186,6 +195,7 @@ void style_switch_efx_load_textures() {
     hr = D3DXCreateTextureFromFileA(device, "native\\texture\\DG.dds", &g_style_textures[GERMANWORD]);
     assert(SUCCEEDED(hr));
 }
+#endif
 
 std::optional<std::string> StyleSwitchFX::on_initialize() {
     // TODOOOOO(important): add soloud audio
@@ -231,7 +241,6 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
     m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
     m_vox->set_volume(1.0f);
 #endif
-    style_switch_efx_load_textures();
     return Mod::on_initialize();
 }
 
@@ -239,7 +248,9 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
 void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
     g_enable_mod      = cfg.get<bool>("StyleSwitchFXenabled").value_or(false);
     g_enable_sound    = cfg.get<bool>("StyleSwitchSoundEnabled").value_or(false);
+#if 0 // TODO coat textures
     g_enable_textures = cfg.get<bool>("StyleSwitchTexturesEnabled").value_or(false);
+#endif
 
     g_vfx_id   = cfg.get<int>("StyleSwitchVfxId").value_or(218);
     g_vfx_bank = cfg.get<int>("StyleSwitchVfxBank").value_or(3);
@@ -258,7 +269,9 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
 void StyleSwitchFX::on_config_save(utility::Config& cfg) {
     cfg.set<bool>("StyleSwitchFXenabled",       g_enable_mod);
     cfg.set<bool>("StyleSwitchSoundEnabled",    g_enable_sound);
+#if 0 // TODO coat textures
     cfg.set<bool>("StyleSwitchTexturesEnabled", g_enable_textures);
+#endif
 
     cfg.set<int>("StyleSwitchVfxId",   g_vfx_id);
     cfg.set<int>("StyleSwitchVfxBank", g_vfx_bank);
@@ -279,9 +292,15 @@ void StyleSwitchFX::on_frame() {
         return;
     }
     if ((g_char_ptr->pad_0000) != 0x744D38) {
+        prev_style = *current_style;
+        return;
+    }
+#if 0 // TODO coat textures
+    if ((g_char_ptr->pad_0000) != 0x744D38) {
         g_texture = nullptr;
         return;
     }
+#endif
     if (*current_style != prev_style) {
         if (g_vfx_id == 218) {
             g_vfx_a3 = 1;
@@ -293,7 +312,9 @@ void StyleSwitchFX::on_frame() {
             play_effect(*current_style);
         }
         play_sound();
+#if 0 // TODO coat textures
         change_texture(*current_style);
+#endif
         prev_style = *current_style;
     }
 }
@@ -355,6 +376,7 @@ void StyleSwitchFX::on_draw_ui() {
 
                 if (ImGui::Selectable(sfx_presets[i].name, is_selected)) {
                     item_current_idx  = i;
+                    selected_combobox_index = i;
                     g_sfx_preset.name = sfx_presets[i].name;
                     g_sfx_preset.a1   = sfx_presets[i].a1;
                     g_sfx_preset.a2   = sfx_presets[i].a2;
@@ -383,6 +405,7 @@ void StyleSwitchFX::on_draw_ui() {
         }
     }
 
+#if 0 // TODO : textured coats
     if (g_textures_not_found) {
         ImGui::Text("Could not load coat textures from DMC3_ROOT\\native\\texture");
         ImGui::Text("Check for permission errors if the files are there, or something idk");
@@ -390,6 +413,7 @@ void StyleSwitchFX::on_draw_ui() {
     else {
         ImGui::Checkbox("Change coat color along with style", &g_enable_textures);
     }
+#endif
 #if SND_TODO
     if (m_vox != nullptr) {
         static float snd_volume = 1.0f;
@@ -444,6 +468,7 @@ void StyleSwitchFX::play_sound()
 #endif
 }
 
+#if 0 // TODO coat textures
 void StyleSwitchFX::change_texture(int style) {
     // const std::lock_guard<std::mutex> lock(g_style_switch_mutex);
     if (g_textures_not_found) {
@@ -472,3 +497,4 @@ void StyleSwitchFX::change_texture(int style) {
     }
     // tp->Release();
 }
+#endif

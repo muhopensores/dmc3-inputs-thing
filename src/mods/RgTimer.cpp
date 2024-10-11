@@ -112,6 +112,7 @@ static float g_release_timer_back = 0.0f;
 
 void RgTimer::on_frame() {
 	static CPlDante* pl = devil3_sdk::get_pl_dante();
+    if(!pl) { return; }
 	if (*(uint32_t*)pl == 0x744D38) {
 		g_pl_block_timer = pl->block_timer;
         //printf("[%d] release_timer=%f\n", g_frame, pl->release_timer);

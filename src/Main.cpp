@@ -6,11 +6,12 @@
 #include "mods/CustomAlolcator.hpp"
 #include "utility/ExceptionHandler.hpp"
 #include "mods/RendererReplace.hpp"
+#include "mods/CustomAlolcator.hpp"
 
 static HMODULE g_dinput;
 static HMODULE g_styleswitcher;
 //static Mod* g_renderer_replace{ nullptr };
-#pragma comment(lib, "mincore")
+
 #if 1
 extern "C" {
 // DirectInput8Create wrapper for dinput8.dll
@@ -71,6 +72,7 @@ void WINAPI startup_thread() {
 #endif
 }
 
+#if 0
 HANDLE filemapping {};
 PULONG_PTR page_array = NULL;
 ULONG_PTR number_of_pages = NULL;
@@ -102,18 +104,27 @@ static BOOL EnableAWE() {
     CloseHandle(hToken);
     return TRUE;
 }
+#endif
 
 BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
 #ifndef NDEBUG
         MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 #endif
-
+        bool pe_section_found = find_pe_section_init_arena();
+        if (!pe_section_found) {
+            g_styleswitcher = LoadLibraryA("StyleSwitcher.dll");
+        }
+        else {
+            g_styleswitcher = LoadLibraryA("StyleSwitcherPatched.dll");
+        }
+#if 0
         SYSTEM_INFO info;
         MEMORY_BASIC_INFORMATION mbi{};
         VirtualQuery((LPCVOID)0x00C36980, &mbi, sizeof(mbi));
         GetSystemInfo(&info);
         DWORD memory_size = 0x8200000;
+#endif
 #if 0
         number_of_pages = memory_size / info.dwPageSize;
         page_array = new ULONG_PTR[number_of_pages];
@@ -169,14 +180,12 @@ BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
 #endif
         }
 #endif
-        g_styleswitcher = LoadLibraryA("StyleSwitcher.dll");
 
         //g_renderer_replace = new RendererReplace();
         //g_renderer_replace->on_initialize();
         CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startup_thread, nullptr, 0, nullptr);
     }
     if (reason == DLL_PROCESS_DETACH) {
-
         FreeLibrary(g_styleswitcher);
         FreeLibrary(g_dinput);
     }

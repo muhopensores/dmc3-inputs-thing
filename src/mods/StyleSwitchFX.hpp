@@ -39,5 +39,5 @@ private:
 };
 
 extern std::mutex g_style_switch_mutex;
-void style_switch_efx_clear_textures();
-void style_switch_efx_load_textures();
+//void style_switch_efx_clear_textures();
+//void style_switch_efx_load_textures();

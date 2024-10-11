@@ -17,5 +17,6 @@ public:
 private:
   // function hook instance for our detour, convinient wrapper
   // around minhook
-  // std::unique_ptr<FunctionHook> m_function_hook;
+  std::unique_ptr<FunctionHook> m_function_hook;
+  std::unique_ptr<FunctionHook> m_function_hook1;
 };

@@ -48,6 +48,18 @@ std::optional<std::string> EnemySpawnRate::on_initialize() {
     return "Failed to install hook for spawn multiplier";
 }
 
+void EnemySpawnRate::on_config_load(const utility::Config& cfg) {
+    GUY_MULTIPLIER  = cfg.get<int>("LDK_enemy_multiplier").value_or(1);
+    BOSS_MULTIPLIER = cfg.get<int>("LDK_boss_multiplier").value_or(2);
+    LDK_BOSSFIGHTS  = cfg.get<bool>("LDK_bossfights").value_or(false);
+}
+
+void EnemySpawnRate::on_config_save(utility::Config& cfg) {
+    cfg.set<int> ("LDK_enemy_multiplier", GUY_MULTIPLIER);
+    cfg.set<int> ("LDK_boss_multiplier",  BOSS_MULTIPLIER);
+    cfg.set<bool>("LDK_bossfights",       LDK_BOSSFIGHTS);
+}
+
 // during load
 // void EnemySpawnRate::on_config_load(const utility::Config &cfg) {
 //	for (IModValue& option : m_options) {
@@ -70,7 +82,8 @@ void EnemySpawnRate::on_draw_ui() {
         ImGui::DragInt("dudes multiplier", &GUY_MULTIPLIER, 1, 0, 5);
         if (ImGui::Checkbox("Legendary DANK knight", &LDK_BOSSFIGHTS)) {
 
-        }
+        } ImGui::SameLine();
+        show_help_marker("SOME Boss spawns are also increased in DANK mode");
         if (LDK_BOSSFIGHTS) {
             ImGui::DragInt("bosses multiplier", &BOSS_MULTIPLIER, 1, 0, 5);
         }
@@ -128,7 +141,7 @@ uintptr_t __fastcall EnemySpawnRate::spawn_a_guy_sub_54ED10_internal(uintptr_t p
 
     // only double the weird enemies
     for (uintptr_t enemy : weird_enemies) {
-        if (vtable_pointer == enemy) {
+        if ((vtable_pointer == enemy) && GUY_MULTIPLIER > 1) {
             res = m_spawn_guy_hook->get_original<decltype(spawn_a_guy_sub_54ED10)>()(p_this, a2, a3);
             return res;
         }
@@ -143,6 +156,10 @@ uintptr_t __fastcall EnemySpawnRate::spawn_a_guy_sub_54ED10_internal(uintptr_t p
 
     for (int i = 0; i < multiplier - 1; i++) {
         // std::this_thread::sleep_for(std::chrono::milliseconds(12));
+        if(g_current_collision_handles >= 0x62) { 
+            spdlog::error("[{}] spawn_guy exceeds collision handles", this->get_name());
+            break;
+        }
         res = m_spawn_guy_hook->get_original<decltype(spawn_a_guy_sub_54ED10)>()(p_this, a2, a3);
         if (!res) {
             spdlog::error("[{}] spawn_guy returned nullptr", this->get_name());

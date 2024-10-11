@@ -3,6 +3,7 @@
 #include <functional>
 
 #include <d3d9.h>
+#include <d3d9types.h>
 
 #include "utility/FunctionHook.hpp"
 

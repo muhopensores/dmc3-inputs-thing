@@ -24,4 +24,6 @@ CCharTableMgrPart* pl_dante_get_dt2_anim_table();
 CSceneGameMain* get_main_scene();
 void area_jump(uint16_t id);
 void play_sound(unsigned __int16 a1, unsigned __int16 a2, int a3);
+
 } // namespace devil3_sdk
+extern CSceneGameMain* g_devil3_main_scene_pointer;

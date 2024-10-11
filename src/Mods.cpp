@@ -28,6 +28,7 @@
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
+#define SPEEDRUN_MODE 1
 
 Mods::Mods()
 {
@@ -48,11 +49,19 @@ void Mods::load_mods() {
 #if 1
 	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
 	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
+#ifndef SPEEDRUN_MODE
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one [5]
 	m_mods.emplace_back(std::make_unique<BulletStop>());
+#else
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+#endif // !SPEEDRUN_MODE
 	m_mods.emplace_back(std::make_unique<UIButton>());
+#ifndef SPEEDRUN_MODE
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
 	m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
     m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
@@ -61,9 +70,26 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<TurnSpeed>());
 	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
 	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
+#else 
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+	m_mods.emplace_back(std::make_unique<Mod>());
+#endif // !SPEEDRUN_MODE
+
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
-	m_mods.emplace_back(std::make_unique<EnemySpawnRate>());
+	m_mods.emplace_back(std::make_unique<EnemySpawnRate>()); // ldk
+
+#ifndef SPEEDRUN_MODE
 	m_mods.emplace_back(std::make_unique<AreaJump>());
+#else 
+	m_mods.emplace_back(std::make_unique<Mod>());
+#endif // !SPEEDRUN_MODE
+
+
 #endif
 
 #ifndef _NDEBUG
@@ -109,18 +135,26 @@ void Mods::on_draw_ui() const {
     for (auto& mod : m_mods) {
         mod->on_draw_ui();
     }
-    g_framework->m_rr->on_draw_ui();
+    //g_framework->m_rr->on_draw_ui();
 }
 
+
 void Mods::on_draw_custom_imgui_window() const {
-#if 0
-	PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[6].get()); // epic footguns akimbo
-	InputLog* l = dynamic_cast<InputLog*>(m_mods[9].get()); // epic footguns akimbo part2
-	DebugDraw* d = dynamic_cast<DebugDraw*>(m_mods[10].get()); // epic footguns akimbo part3
-	RgTimer* t = dynamic_cast<RgTimer*>(m_mods[11].get());
-	p->custom_imgui_window();
-	l->custom_imgui_window();
-	d->custom_imgui_window();
-	t->custom_imgui_window();
-#endif
+    PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[6].get()); // epic footguns akimbo
+    InputLog* l     = dynamic_cast<InputLog*>(m_mods[9].get());     // epic footguns akimbo part2
+    DebugDraw* d    = dynamic_cast<DebugDraw*>(m_mods[10].get());   // epic footguns akimbo part3
+    RgTimer* t      = dynamic_cast<RgTimer*>(m_mods[11].get());
+
+    if (p) {
+        p->custom_imgui_window();
+    }
+    if (l) {
+        l->custom_imgui_window();
+    }
+    if (d) {
+        d->custom_imgui_window();
+    }
+    if (t) {
+        t->custom_imgui_window();
+    }
 }

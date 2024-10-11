@@ -1,6 +1,29 @@
 #include "AreaJump.hpp"
 
+
 // clang-format off
+static uintptr_t detour_return {NULL};
+static void __declspec(naked) detour() {
+    __asm {
+        mov dword ptr [esi],007462C4h
+        mov dword ptr [g_devil3_main_scene_pointer], esi
+        jmp dword ptr [detour_return]
+    }
+}
+static uintptr_t detour1_retun {NULL};
+static void __declspec(naked) detour1() {
+    __asm {
+        test eax, eax
+        jne original_code
+        ret
+    original_code:
+        push ebx
+        mov bl, 20
+        mov cl, [eax]
+        jmp dword ptr [detour1_retun]
+    }
+
+}
 // clang-format on
 
 struct Room {
@@ -200,14 +223,23 @@ static constexpr std::array<Room, 189> room_items = {
 };
 
 std::optional<std::string> AreaJump::on_initialize() {
-  // uintptr_t base = g_framework->get_module().as<uintptr_t>();
-  return Mod::on_initialize();
+
+    if (!install_hook_absolute(0x005E10D9, m_function_hook, &detour, &detour_return, 6)) {
+        return "Failed to install CSceneGameMain::CSceneGameMain() hook";
+    }
+#if 0
+    if (!install_hook_absolute(0x00695A64, m_function_hook1, &detour1, &detour1_retun, 5)) {
+        return "Failed to install CStage::something() hook";
+    }
+#endif
+
+    return Mod::on_initialize();
 }
 
 void AreaJump::on_draw_ui() {
-	if (!ImGui::CollapsingHeader(get_name().data())) {
-		return;
-	}
+    if (!ImGui::CollapsingHeader(get_name().data())) { 
+        return;
+    }
     static char filter_inputbox[MAX_PATH] = {0};
 
     ImGui::InputText("Filter: ", filter_inputbox, MAX_PATH);

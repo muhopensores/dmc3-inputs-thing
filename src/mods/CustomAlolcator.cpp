@@ -32,6 +32,7 @@ constexpr std::size_t operator""_GiB(unsigned long long int x) {
     return 1024_MiB * x;
 }
 
+#pragma region MEMORY_ARENA
 namespace memory {
 // code stolen from gingerBills article on memory allocators
 // https://www.gingerbill.org/article/2019/02/08/memory-allocation-strategies-002/
@@ -180,6 +181,7 @@ static void arena_free_all(Arena* a) {
 Arena g_bigass_arena = {0};
 
 } // namespace memory
+#pragma endregion
 
 #pragma region FILE_ROUTINES
 
@@ -285,6 +287,7 @@ DEBUGPlatformWriteEntireFile(char* Filename, uint32_t MemorySize, void* Memory)
 
 
 #pragma region POSSIBLE_TEXTURE_FIX
+#if 0
 static uint32_t g_numtextures {0};
 static void release_textures() {
 
@@ -375,10 +378,12 @@ static __declspec(naked) void detour_d3d9_load_texture_sub_006E0B10(void) {
     }
 }
 
+#endif
 #pragma endregion
 
 
 #pragma region SAVE_STATE
+#if 0
 enum class SaveStateCommand {
     SS_CMD_NOOP,
     SS_CMD_SAVE,
@@ -399,7 +404,6 @@ static void save_state_callback() {
     BYTE* someshit          = (BYTE*)0x0081FC90;
     IDirect3DDevice9 **g_D3D9_device_dword_252F374 = (IDirect3DDevice9 **)0x0252F374;
     IDirect3DDevice9* backup_d3d_device9 = *g_D3D9_device_dword_252F374;
-    CSceneGameMain* scn                            = devil3_sdk::get_main_scene();
     switch (g_save_state_command)
     {
     case SaveStateCommand::SS_CMD_SAVE:
@@ -410,8 +414,11 @@ static void save_state_callback() {
         DEBUGPlatformWriteEntireFile("g_bigass_arena.ass", memory::g_bigass_arena.buf_len, memory::g_bigass_arena.buf);
         // data section
         DEBUGPlatformWriteEntireFile("g_data_section.ass", g_data_section_info.g_data_section_size, (void*)g_data_section_info.g_data_section_start);
-        if(scn) {
-            DEBUGPlatformWriteEntireFile("g_current_area", sizeof(uint16_t), &scn->currentLevel);
+        {
+            CSceneGameMain* scn = devil3_sdk::get_main_scene();
+            if (scn) {
+                DEBUGPlatformWriteEntireFile("g_current_area", sizeof(uint16_t), &scn->currentLevel);
+            }
         }
         save_textures();
         g_save_state_command = SaveStateCommand::SS_CMD_NOOP;
@@ -502,16 +509,21 @@ static __declspec(naked) void detour_game_main_callback(void) {
     }
 }
 
+#endif
 #pragma endregion
 
 #pragma region SCENE_LOADING
+#if 0
 
 static void scene_loaded_callback() {
+#if 0
     style_switch_efx_clear_textures();
     style_switch_efx_load_textures();
     if(g_save_state_command == SaveStateCommand::SS_CMD_LOAD_QUEUED) {
         g_save_state_command = SaveStateCommand::SS_CMD_LOAD;
     }
+#endif
+    IM_ASSERT("UNIMPLEMENTED");
 }
 
 static uintptr_t detour_scene_loaded_jump_back {};
@@ -525,7 +537,14 @@ static __declspec(naked) void detour_scene_loaded(void) {
         jmp DWORD PTR [detour_scene_loaded_jump_back]
     }
 }
+#endif
 #pragma endregion
+
+static __declspec(naked) void push_0megs(void) {
+    _asm {
+		push 0; // cant use cool constexpr size literals here smh
+    }
+}
 
 static __declspec(naked) void push_16megs(void) {
     _asm {
@@ -699,7 +718,7 @@ bruh:
 }
 #endif
 
-static void find_pe_section_init_arena() noexcept {
+bool find_pe_section_init_arena() noexcept {
     HMODULE h_module                    = GetModuleHandle(NULL);
     IMAGE_NT_HEADERS* p_nt_hdr          = ImageNtHeader(h_module); // get PE info
     IMAGE_SECTION_HEADER* p_section_hdr = (IMAGE_SECTION_HEADER*)(p_nt_hdr + 1);
@@ -732,14 +751,15 @@ static void find_pe_section_init_arena() noexcept {
             void* unused              = memory::arena_alloc(&memory::g_bigass_arena, pad);
             IM_ASSERT((unused != NULL) && "Arena alloc returned a null pointer");
 #ifndef NDEBUG
-            printf("arena_alloc: %zu\n", unused);
+            printf("arena_alloc: %zu\n", (uintptr_t)unused);
 #endif
-            return;
+            g_mem_patch_applied = true;
+            return true;
         }
         p_section_hdr++;
     }
-    IM_ASSERT(".reloc section was not found in the dmc3se.exe PE header");
-    // TODO(): warn the user or mark something in imgui menu idk
+    g_mem_patch_applied = false;
+    return false;
 }
 
 static constexpr uint64_t round_to_pow2_size(uint32_t minimum_size, uint32_t pow2_size) {
@@ -757,6 +777,10 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
     init = true;
 
     g_custom_alolcator = this;
+
+    if (!g_mem_patch_applied) {
+        return Mod::on_initialize();
+    }
 
     m_alloc_hook = std::make_unique<FunctionHook>(0x6D4580, &sub_6d4580);
     m_heap_control_sub_6D0E30_hook = std::make_unique<FunctionHook>(0x006D0E30, &heap_control_something_sub_6D0E30);
@@ -780,19 +804,24 @@ std::optional<std::string> CustomAlolcator::on_initialize() {
     find_pe_section_init_arena();
 
 
+#if 0 // WILD SHIT main loop
     // main game loop?
     install_hook_absolute(0x403580, m_main_sub_00403580_hook, &detour_game_main_callback, &detour_game_main_jmp_back, 5);
+#endif 
 
-#if 1
+#if 0 // WILD SHIT textures
     // texture loading routine
     install_hook_absolute(0x006E0B10, m_d3d9_load_texture_hook_sub_006E0B10, 
         &detour_d3d9_load_texture_sub_006E0B10, &detour_d3d9_load_texture_jump_back, 6);
-#endif
     //HRESULT __fastcall CustomAlolcator::d3d_sets_texture_maybe_sub_6E0DF0(Devil3Texture* texture) {
     m_hook_d3d_sets_texture_maybe_sub_6E0DF0 = std::make_unique<FunctionHook>(0x006E0DF0, &d3d_sets_texture_maybe_sub_6E0DF0);
     m_hook_d3d_sets_texture_maybe_sub_6E0DF0->create();
+#endif
 
+#if 0 // wild shit scene
     install_hook_absolute(0x005E02C3, m_scene_loaded_sub_005E02C0, &detour_scene_loaded, &detour_scene_loaded_jump_back, 6);
+#endif
+
 #if 0 // TODO(): in case someone contributes full custom memory allocator
     // second bunch
     install_patch_absolute(0x6D5420, patch08, (char*)&push_32megs, 5); // push 0000021C default
@@ -1055,6 +1084,7 @@ void* CustomAlolcator::sub_65B880_internal(int a1, size_t sz, int a3)
     return g_custom_alolcator->sub_65B880(a1, sz, a3);
 }
 
+#if 0 // WILD SHIT textures
 HRESULT CustomAlolcator::d3d_sets_texture_maybe_sub_6E0DF0_internal(Devil3Texture* texture) {
     auto original_func = (decltype(CustomAlolcator::d3d_sets_texture_maybe_sub_6E0DF0)*)m_hook_d3d_sets_texture_maybe_sub_6E0DF0->get_original();
 
@@ -1072,6 +1102,7 @@ HRESULT CustomAlolcator::d3d_sets_texture_maybe_sub_6E0DF0_internal(Devil3Textur
 HRESULT __fastcall CustomAlolcator::d3d_sets_texture_maybe_sub_6E0DF0(Devil3Texture* texture) {
     return g_custom_alolcator->d3d_sets_texture_maybe_sub_6E0DF0_internal(texture);
 }
+#endif
 
 void CustomAlolcator::on_config_load(const utility::Config& cfg) {
     for (IModValue& option : m_options) {
@@ -1095,6 +1126,7 @@ void CustomAlolcator::on_draw_debug_ui() {
 
     ImGui::Text("Memory allocator:\n\tbase=%p\n\tsize=%zu\n\tcursor=%zu\n\tsize_left=%zu\n\t", base, size / 1024, cursor, sz_left / 1024);
 
+#if 0 // WILD SHIT textures
     ImGui::Text("texture_num: %zu", g_texture_pointers.size());
     ImGui::Checkbox("skip_textures", &g_skip_textures);
 
@@ -1116,16 +1148,26 @@ void CustomAlolcator::on_draw_debug_ui() {
         }
         ImGui::TreePop();
     }
+#endif
 }
 // will show up in main window, dump ImGui widgets you want here
 
 void CustomAlolcator::on_draw_ui() {
     if (ImGui::CollapsingHeader("Memory Alolcator Adjustments")) {
+        if(g_mem_patch_applied) {
+            ImGui::TextColored(ImColor(IM_COL32(85,217,133,255)), "Memory allocation patches are applied!");
+        }
+        else {
+            ImGui::Text("Missing .pe section memory patches are not applied!");
+        }
+        ImGui::Text("Saved memory states:");
+#if 0 // WILD SHIT savestate
         if (ImGui::Button("Dump memory")) {
             g_save_state_command = SaveStateCommand::SS_CMD_SAVE;
         }
         if (ImGui::Button("Load memory")) {
             g_save_state_command = SaveStateCommand::SS_CMD_LOAD;
         }
+#endif
     }
 }

@@ -113,3 +113,4 @@ HRESULT WINAPI D3D9Hook::reset(LPDIRECT3DDEVICE9 pDevice, D3DPRESENT_PARAMETERS 
 
 	return reset_fn(pDevice, pPresentationParameters);
 }
+

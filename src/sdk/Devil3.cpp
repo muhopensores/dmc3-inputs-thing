@@ -1,7 +1,9 @@
 #include "Devil3.hpp"
 #include "mods/CustomAlolcator.hpp"
 
-#if 0
+CSceneGameMain* g_devil3_main_scene_pointer {nullptr};
+
+#if 1
 struct dante_anim_table {
     CCharTableMgrPart* human = (CCharTableMgrPart*)0x41D8; // 0x01C8E7D8;
     CCharTableMgrPart* dt1   = (CCharTableMgrPart*)0x4518; // 0x01C8EB18;
@@ -186,11 +188,12 @@ const bool devil3_sdk::pl_dante_check_animation_id(uint16_t id)
 
 
 CSceneGameMain* devil3_sdk::get_main_scene() {
-    CSceneGameMain* scn = (CSceneGameMain*)0x2C72840;
+    CSceneGameMain* scn = g_devil3_main_scene_pointer;
     if (scn->vtable != 0x7462C4) {
         return nullptr;
     }
     return scn; // TODO(): memory patch offset, vanilla game would be different
+
 }
 
 void devil3_sdk::area_jump(uint16_t id) {
