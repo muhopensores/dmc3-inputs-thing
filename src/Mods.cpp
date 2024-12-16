@@ -28,7 +28,7 @@
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
-#define SPEEDRUN_MODE 1
+#define GAMEPLAY_HOOKS 1 // NOTE(): set 0 for speedrunner build
 
 Mods::Mods()
 {
@@ -40,7 +40,11 @@ Mods::Mods()
 }
 
 void Mods::load_time_critical_mods() {
+#ifdef DINPUT_HOOK
 	m_mods.emplace_back(std::make_unique<GamepadsFix>());
+#else
+    m_mods.emplace_back(std::make_unique<Mod>());
+#endif
 	m_mods.emplace_back(std::make_unique<CustomAlolcator>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
@@ -49,7 +53,7 @@ void Mods::load_mods() {
 #if 1
 	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
 	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
-#ifndef SPEEDRUN_MODE
+#if GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<InertiaThings>());
 	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
 	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one [5]
@@ -59,9 +63,9 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<Mod>());
 	m_mods.emplace_back(std::make_unique<Mod>());
 	m_mods.emplace_back(std::make_unique<Mod>());
-#endif // !SPEEDRUN_MODE
+#endif // !GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<UIButton>());
-#ifndef SPEEDRUN_MODE
+#if GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
 	m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
     m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
@@ -78,16 +82,16 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<Mod>());
 	m_mods.emplace_back(std::make_unique<Mod>());
 	m_mods.emplace_back(std::make_unique<Mod>());
-#endif // !SPEEDRUN_MODE
+#endif // !GAMEPLAY_HOOKS
 
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
 	m_mods.emplace_back(std::make_unique<EnemySpawnRate>()); // ldk
 
-#ifndef SPEEDRUN_MODE
+#if GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<AreaJump>());
 #else 
 	m_mods.emplace_back(std::make_unique<Mod>());
-#endif // !SPEEDRUN_MODE
+#endif // !GAMEPLAY_HOOKS
 
 
 #endif

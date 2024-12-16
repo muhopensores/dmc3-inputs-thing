@@ -148,7 +148,29 @@ target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME dinput8)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DINPUT_HOOK)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DINPUT_HOOK DINPUT_MODE)
+if(DEVELOPER_MODE)
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)
+    target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC /EHa)
+endif()
+
+add_library(dsound SHARED
+            Main.cpp
+            LicenseStrings.hpp
+            ${SDK_SRC}
+            ${MODS_SRC}
+            ${HOOKS_SRC}
+            ${IMGUI_SRC}
+            ${UTILITY_SRC}
+            ${FRAMEWORK_SRC}
+)
+
+target_link_libraries(dsound PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer)
+target_compile_features(dsound PUBLIC cxx_std_17)
+
+include_directories(dsound ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(dsound PROPERTIES OUTPUT_NAME dsound)
+target_compile_definitions(dsound PUBLIC DSOUND_MODE)
 if(DEVELOPER_MODE)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)
     target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC /EHa)

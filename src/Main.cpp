@@ -10,9 +10,8 @@
 
 static HMODULE g_dinput;
 static HMODULE g_styleswitcher;
-//static Mod* g_renderer_replace{ nullptr };
 
-#if 1
+#ifdef DINPUT_MODE
 extern "C" {
 // DirectInput8Create wrapper for dinput8.dll
 __declspec(dllexport) HRESULT WINAPI direct_input8_create(HINSTANCE hinst, DWORD dw_version, const IID& riidltf, LPVOID* ppv_out, LPUNKNOWN punk_outer) {
@@ -22,6 +21,24 @@ __declspec(dllexport) HRESULT WINAPI direct_input8_create(HINSTANCE hinst, DWORD
     return ((decltype(direct_input8_create)*)GetProcAddress(g_dinput, "DirectInput8Create"))(hinst, dw_version, riidltf, ppv_out, punk_outer);
 }
 }
+#endif
+
+#ifdef DSOUND_MODE
+#define DLLPATH "\\\\.\\GLOBALROOT\\SystemRoot\\SysWOW64\\dsound.dll"
+
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureCreate=" DLLPATH ".DirectSoundCaptureCreate,@6")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureCreate8=" DLLPATH ".DirectSoundCaptureCreate8,@12")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureEnumerateA=" DLLPATH ".DirectSoundCaptureEnumerateA,@7")
+#pragma comment(linker, "/EXPORT:DirectSoundCaptureEnumerateW=" DLLPATH ".DirectSoundCaptureEnumerateW,@8")
+#pragma comment(linker, "/EXPORT:DirectSoundCreate=" DLLPATH ".DirectSoundCreate,@1")
+#pragma comment(linker, "/EXPORT:DirectSoundCreate8=" DLLPATH ".DirectSoundCreate8,@11")
+#pragma comment(linker, "/EXPORT:DirectSoundEnumerateA=" DLLPATH ".DirectSoundEnumerateA,@2")
+#pragma comment(linker, "/EXPORT:DirectSoundEnumerateW=" DLLPATH ".DirectSoundEnumerateW,@3")
+#pragma comment(linker, "/EXPORT:DirectSoundFullDuplexCreate=" DLLPATH ".DirectSoundFullDuplexCreate,@10")
+#pragma comment(linker, "/EXPORT:DllCanUnloadNow=" DLLPATH ".DllCanUnloadNow,PRIVATE")
+#pragma comment(linker, "/EXPORT:DllGetClassObject=" DLLPATH ".DllGetClassObject,PRIVATE")
+#pragma comment(linker, "/EXPORT:GetDeviceID=" DLLPATH ".GetDeviceID,@9")
+
 #endif
 
 static constexpr uint64_t round_to_pow2_size(uint32_t minimum_size, uint32_t pow2_size) {
@@ -53,7 +70,7 @@ void WINAPI startup_thread() {
 
 #endif
 
-#if 1
+#ifdef DINPUT_MODE
     wchar_t buffer[MAX_PATH]{0};
     if (GetSystemDirectoryW(buffer, MAX_PATH) != 0) {
         // Load the original dinput8.dll
@@ -68,7 +85,12 @@ void WINAPI startup_thread() {
         failed();
     }
     g_framework = std::make_unique<ModFramework>();
-#else
+#endif
+#ifdef DSOUND_MODE
+    g_framework = std::make_unique<ModFramework>();
+#ifdef NDEBUG
+    reframework::setup_exception_handler();
+#endif
 #endif
 }
 
@@ -187,7 +209,9 @@ BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
     }
     if (reason == DLL_PROCESS_DETACH) {
         FreeLibrary(g_styleswitcher);
-        FreeLibrary(g_dinput);
+        if (g_dinput) {
+            FreeLibrary(g_dinput);
+        }
     }
     return TRUE;
 }
