@@ -139,7 +139,9 @@ void Mods::on_draw_ui() const {
     for (auto& mod : m_mods) {
         mod->on_draw_ui();
     }
-    //g_framework->m_rr->on_draw_ui();
+    if(g_framework->m_rr) {
+        g_framework->m_rr->on_draw_ui();
+    }
 }
 
 

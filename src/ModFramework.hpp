@@ -64,7 +64,7 @@ public:
 
     void save_config();
 
-    //Mod* m_rr;
+    Mod* m_rr;
 private:
     void draw_ui();
     void draw_about();

@@ -105,6 +105,8 @@ set(UTILITY_SRC
     utility/Thread.hpp
     utility/Thread.cpp
     utility/SDLGamepad.hpp
+    utility/MemArena.hpp
+    utility/MemArena.cpp
     #utility/tgc.h
     #utility/tgc.c
 )

@@ -3,7 +3,24 @@
 #include "D3dx9math.h"
 #include "meshoptimizer.h"
 #include "numeric"
+#include "utility/MemArena.hpp"
 #include <set>
+
+#include <DxErr.h>
+#pragma comment(lib, "dxerr.lib")
+
+// size literals
+constexpr std::size_t operator""_KiB(unsigned long long int x) {
+    return 1024ULL * x;
+}
+
+constexpr std::size_t operator""_MiB(unsigned long long int x) {
+    return 1024_KiB * x;
+}
+
+constexpr std::size_t operator""_GiB(unsigned long long int x) {
+    return 1024_MiB * x;
+}
 
 static RendererReplace* g_rreplace {nullptr};
 #if 0
@@ -440,8 +457,11 @@ LABEL_45:
 #endif
 
 struct TempDIPThings {
-    INT base_vertex_index {};
-    UINT min_vertex_index {};
+    INT base_vertex_index { 0 };
+    UINT min_vertex_index { 0 };
+    UINT num_vertices { 30438 };
+    UINT start_index { 3321 };
+    UINT prim_count { 24 };
 };
 
 static TempDIPThings g_temp_dip_things{};
@@ -890,7 +910,7 @@ static __declspec(naked) void d3d_before_unlock_naked() {
 }
 // clang-format on
 
-#if 1
+#if 0
 #pragma region reclass
 class MeshDataSorting {
 public:
@@ -938,7 +958,6 @@ public:
 };                                          // Size: 0x0014
 
 #pragma endregion
-#endif
 
 static void __stdcall optimize_mesh_data(RDrawSomethingStruct* rd) {
 
@@ -1001,8 +1020,945 @@ static __declspec(naked) void r_prep_mesh_datas() {
     }
 }
 // clang-format on
+#endif
+
+#pragma region cdraw_reclass
+// Created with ReClass.NET 1.2 by KN4CK3R
+
+class cDrawSub
+{
+public:
+    class ModTansformsMatrices *obj_transforms_matrices_ptr; //0x0000
+    uint8_t *skel_hierarchy; //0x0004
+    uint8_t *skel_indicies_ptr; //0x0008
+    uint8_t *skel_object_roots; //0x000C
+    class ModTransformVec *skel_bones_ptr; //0x0010
+    class IDraw *IDrawVtable; //0x0014
+    class IDrawOperate *IDrawOperateVtable; //0x0018
+    char pad_001C[132]; //0x001C
+    uint32_t draw_flag_or_something; //0x00A0
+    uint32_t ass; //0x00A4
+    uint16_t object_count; //0x00A8
+    uint16_t bone_count; //0x00AA
+    uint16_t tex_count; //0x00AC
+    uint16_t idk3; //0x00AE
+    uint32_t unk1; //0x00B0
+    uint32_t unk2; //0x00B4
+    uint16_t unk3; //0x00B8
+    uint16_t unk4; //0x00BA
+    class SomeModelData *modnrender_data_ptr; //0x00BC
+    class rModel *model_ptr; //0x00C0
+    class rTim2 *texture_ptr; //0x00C4
+    class TextureStuff0 (*texture_stuff0_ptr)[5]; //0x00C8
+    class TextureStuff1 *texture_stuff1_ptr; //0x00CC
+    class cDrawSubUnk2 *cdrawsub2_unk0_ptr; //0x00D0
+    class cDrawSubUnk2 *cdrawsub2_unk1_ptr; //0x00D4
+    class cDrawSubUnk2 *cdrawsub2_unk2_ptr; //0x00D8
+    class cDrawSubUnk2 *cdrawsub2_unk3_ptr; //0x00DC
+    class cDrawSubUnk2 *cdrawsub2_unk4_ptr; //0x00E0
+    class cDrawSubUnk2 *cdrawsub2_unk5_ptr; //0x00E4
+    class SomeTextureUintsIdk (*some_texture_uints_ptr)[2]; //0x00E8
+    class cDrawSubUnk6 *cdrawsub_unk6_ptr; //0x00EC
+    class SomeTextureAlphaThing (*some_texture_alpha_thing_ptr)[1]; //0x00F0
+    class SomeTextureAlphaThing *some_texture_alpha_thing_ptr1; //0x00F4
+    char pad_00F8[4]; //0x00F8
+    class cDrawSubUnk7 *cdrawsub_unk7_ptr; //0x00FC
+    Matrix4x4 *some_matrix_ptr; //0x0100
+    class UnkVecMaybe *some_ptr_vec_maybe; //0x0104
+    char pad_0108[8]; //0x0108
+    Matrix4x4 some_matrix0; //0x0110
+    Matrix4x4 some_matrix1; //0x0150
+}; //Size: 0x0190
+
+class cDrawSCM
+{
+public:
+    char pad_0000[44]; //0x0000
+    class cDrawSub N0000005A; //0x002C
+    char pad_01BC[4116]; //0x01BC
+}; //Size: 0x11D0
+
+class rTim2
+{
+public:
+    char pad_0000[2048]; //0x0000
+    char tim2header[4]; //0x0800
+    char pad_0804[2048]; //0x0804
+}; //Size: 0x1004
+
+class rModelObjectHeaders
+{
+public:
+    uint8_t meshCount; //0x0000
+    uint8_t unk; //0x0001
+    uint16_t vertCount; //0x0002
+    class rModelMesh *objectOffset; //0x0004
+    uint32_t objFlags; //0x0008
+    uint8_t reserved[20]; //0x000C
+    Vector3 spherePos; //0x0020
+    float radius; //0x002C
+}; //Size: 0x0030
+
+class rModel
+{
+public:
+    char modfourcc[4]; //0x0000
+    float version; //0x0004
+    uint64_t reserved; //0x0008
+    uint8_t objectCount; //0x0010
+    uint8_t boneCount; //0x0011
+    uint8_t texCount; //0x0012
+    uint8_t unk[9]; //0x0013
+    uint32_t skelOffset; //0x001C
+    char pad_0020[16]; //0x0020
+    class rModelObjectHeaders N00000E39; //0x0030
+    char pad_0060[220]; //0x0060
+}; //Size: 0x013C
+
+class cDraw
+{
+public:
+    char pad_0000[8]; //0x0000
+    uint32_t some_field; //0x0008
+    uint32_t pad; //0x000C
+    uint32_t draw_flag; //0x0010
+    class rTim2 *tim2; //0x0014
+    uint32_t pad1; //0x0018
+    void *some_allocator_type_thing1; //0x001C
+    void *some_allocator_type_thing; //0x0020
+    uint32_t notSure; //0x0024
+    uint32_t notSure1; //0x0028
+    class cDrawSub cDrawSub; //0x002C
+}; //Size: 0x01BC
+
+class ModTransformVec
+{
+public:
+    Vector4 pos; //0x0000
+    Vector4 rot; //0x0010
+}; //Size: 0x0020
+
+class ModTansformsMatrices
+{
+public:
+    Matrix4x4 unk; //0x0000
+    Matrix4x4 world_maybe; //0x0040
+    class ModTansformsMatrices *next; //0x0080
+    uint32_t idk; //0x0084
+}; //Size: 0x0088
+
+class TextureStuff1
+{
+public:
+    char pad_0000[4100]; //0x0000
+}; //Size: 0x1004
+
+class TextureStuff0
+{
+public:
+    void *some_texture_offset; //0x0000
+    uint32_t field_04; //0x0004
+    uint32_t field_08; //0x0008
+    uint32_t field_0C; //0x000C
+    uint32_t field_10; //0x0010
+    uint32_t field_14; //0x0014
+    uint32_t field_18; //0x0018
+    uint32_t field_1C; //0x001C
+    uint32_t field_20; //0x0020
+    uint32_t field_24; //0x0024
+    uint32_t field_28; //0x0028
+    uint32_t field_2c; //0x002C
+}; //Size: 0x0030
+
+class UnkVecMaybe
+{
+public:
+    Vector4 maybe_vec; //0x0000
+}; //Size: 0x0010
+
+class SomeTextureUintsIdk
+{
+public:
+    uint32_t field0; //0x0000
+    uint32_t field4; //0x0004
+    uint32_t field8; //0x0008
+    uint32_t fieldC; //0x000C
+    char pad_0010[8]; //0x0010
+    uint32_t field18; //0x0018
+    uint32_t field1C; //0x001C
+    char pad_0020[8]; //0x0020
+    uint32_t field28; //0x0028
+    char pad_002C[4]; //0x002C
+}; //Size: 0x0030
+
+class SomeTextureAlphaThing
+{
+public:
+    float flt0; //0x0000
+    float flt4; //0x0004
+    float flt8; //0x0008
+    float fltC; //0x000C
+    float flt10; //0x0010
+    float flt14; //0x0014
+    float flt18; //0x0018
+    float flt1C; //0x001C
+}; //Size: 0x0020
+
+class rModelHeader
+{
+public:
+    char fourcc[4]; //0x0000
+    float version; //0x0004
+    uint64_t reserved; //0x0008
+    uint8_t objectCount; //0x0010
+    uint8_t boneCount; //0x0011
+    uint8_t texCount; //0x0012
+    uint8_t unk[9]; //0x0013
+    void *skelOffs; //0x001C
+    void *someOffset; //0x0020
+    void *someOtherOffset; //0x0024
+    void *someOtherOtherOffset; //0x0028
+    void *someOtherOtherOtherOffset; //0x002C
+}; //Size: 0x0030
+
+class rModelSCM : public rModelHeader
+{
+public:
+    class rModelObjectHeaders objects[114]; //0x0030 size = header.objectCount
+    char pad_1590[5524]; //0x1590
+}; //Size: 0x2B24
+
+class rModelMeshHdr
+{
+public:
+    uint16_t vertCount; //0x0000
+    uint16_t texInd; //0x0002
+    uint64_t reserved; //0x0004
+    Vector3 *vertsOffset; //0x000C
+    Vector3 *normalsOffs; //0x0010
+    class rModelUVData *uvsOffset; //0x0014
+    void *someOffset; //0x0018
+    void *someOtherOffset; //0x001C
+    class rModelSCMData *scmDataOffset; //0x0020
+    uint32_t idk00; //0x0024
+    uint32_t idk01; //0x0028
+    uint32_t idk02; //0x002C
+}; //Size: 0x0030
+
+class rModelMesh : public rModelMeshHdr
+{
+public:
+}; //Size: 0x0030
+
+class Object : public rModelMesh
+{
+public:
+}; //Size: 0x0030
+
+class rModelUVData
+{
+public:
+    int16_t u; //0x0000
+    int16_t t; //0x0002
+}; //Size: 0x0004
+
+class rModelVertColor
+{
+public:
+    uint8_t red; //0x0000
+    uint8_t green; //0x0001
+    uint8_t blue; //0x0002
+}; //Size: 0x0003
+
+class rModelSCMData : public rModelVertColor
+{
+public:
+    uint8_t triSkipFlag; //0x0003
+}; //Size: 0x0004
+
+class rModelBone
+{
+public:
+    Vector3 pos; //0x0000
+    float length; //0x000C
+    Vector3 unkVec; //0x0010
+    float unk; //0x001C
+}; //Size: 0x0020
+
+class rModelSkeleton
+{
+public:
+    void *hierarchyOffset; //0x0000
+    void *indexOffset; //0x0004
+    void *objectRootsOffset; //0x0008
+    void *boneTransformOffset; //0x000C
+    uint32_t notBoneCount; //0x0010
+    uint8_t unk[12]; //0x0014
+    uint8_t hierarchy[116]; //0x0020 length == notBoneCount?
+    uint8_t indicies[116]; //0x0094
+    uint8_t objectRoots[116]; //0x0108
+    uint32_t reserved; //0x017C
+    class rModelBone N000010A8[115]; //0x0180
+}; //Size: 0x0FE0
+
+class SomeRenderDataIdkAnonStruct
+{
+public:
+    uint32_t some_int; //0x0000
+    uint32_t N00001DEE; //0x0004
+    uint32_t eeee_int; //0x0008
+    char pad_000C[4]; //0x000C
+    uint32_t some_table_lookup_int0; //0x0010
+    uint32_t some_table_lookup_int1; //0x0014
+    uint32_t n_int; //0x0018
+    char pad_001C[4]; //0x001C
+    uint32_t table_lookup_int2; //0x0020
+    uint32_t table_lookup_int3; //0x0024
+    uint32_t g_int; //0x0028
+    uint32_t N00001DF8; //0x002C
+    uint32_t some_int1; //0x0030
+    uint32_t N00001392_; //0x0034
+    uint32_t b_int; //0x0038
+    uint32_t N00001DFC; //0x003C
+    uint32_t some_obj_flags_bitwise_thing; //0x0040
+    uint32_t some_int_unk; //0x0044
+    char pad_0048[4]; //0x0048
+    uint32_t N00001E07; //0x004C
+}; //Size: 0x0050
+
+class SmdScratchBufferMaybe
+{
+public:
+    char pad_0000[144]; //0x0000
+}; //Size: 0x0090
+
+class SomeModelData
+{
+public:
+    uint32_t fld0; //0x0000
+    uint8_t flag0; //0x0004
+    uint8_t flag1; //0x0005
+    uint8_t flag2; //0x0006
+    uint8_t flag3; //0x0007
+    uint32_t vert_accumulator; //0x0008
+    uint8_t mesh_count; //0x000C
+    uint8_t N000019A8; //0x000D
+    uint8_t some_skel_stuff; //0x000E
+    uint8_t N000019A9; //0x000F
+    uint32_t N00001380; //0x0010
+    uint32_t some_rendering_flags_again; //0x0014
+    class rModelObjectHeaders *r_model_obj_headers_ptr; //0x0018
+    class SomeRenderingData *ptr_has_some_rendering_data; //0x001C
+    Vector4 sphere; //0x0020
+    class cDrawSubUnk2 *cdrawsubs_array[6]; //0x0030
+    uint32_t N0000138B; //0x0048
+    uint32_t N0000138C; //0x004C
+    uint32_t some_table_lookup_int0; //0x0050
+    uint32_t some_table_lookup_int1; //0x0054
+    uint32_t some_table_lookup_int2; //0x0058
+    uint32_t some_table_lookup_int3; //0x005C
+    uint32_t some_int1; //0x0060
+    uint32_t N00001392; //0x0064
+    uint32_t some_obj_flags_bitwise_thing; //0x0068
+    uint32_t some_int_unk; //0x006C
+    uint32_t some_result_int; //0x0070
+    char pad_0074[12]; //0x0074
+    class SomeRenderDataIdkAnonStruct some_anon_struct0; //0x0080
+    class SomeRenderDataIdkAnonStruct some_anon_struct1; //0x00D0
+    uint32_t N000013C1; //0x0120
+    uint32_t N000013C2; //0x0124
+    uint32_t N000013C3; //0x0128
+    uint32_t N000013C4; //0x012C
+    Vector4 emissive; //0x0130
+    uint32_t N000013C9; //0x0140
+    uint32_t N000013CA; //0x0144
+    uint32_t N000013CB; //0x0148
+    uint32_t some_flag0; //0x014C
+    char pad_0150[16]; //0x0150
+    Vector4 emissive_copy; //0x0160
+    char pad_0170[12]; //0x0170
+    uint32_t some_flag1; //0x017C
+    char pad_0180[304]; //0x0180
+    class SmdScratchBufferMaybe some_scratch_buffer_maybe; //0x02B0
+}; //Size: 0x0340
+
+class cDrawSubUnk2
+{
+public:
+    uint32_t f0; //0x0000
+    class cDrawSubUnk2 *cdsu_next_ptr; //0x0004
+    uint32_t f8; //0x0008
+    uint32_t fc; //0x000C
+    uint32_t f10; //0x0010
+    class SomeTextureAlphaThing *some_tex_alpha_thing_ptr; //0x0014
+    uint32_t some_static_memory_stuff; //0x0018
+    uint32_t f1c; //0x001C
+    uint32_t field_20; //0x0020
+    Matrix4x4 *projection_maybe; //0x0024
+    uint32_t field_28; //0x0028
+    uint32_t field_2C; //0x002C
+}; //Size: 0x0030
+
+class SomeRenderingData
+{
+public:
+    uint32_t batches_maybe; //0x0000
+    uint32_t vert_count; //0x0004
+    uint32_t tex_ind; //0x0008
+    class rModelMeshHdr *model_mesh_hdr_ptr; //0x000C
+    uint32_t offset_0x10; //0x0010
+    uint32_t offset_0x14; //0x0014
+    uint32_t offset_0x18; //0x0018
+    uint32_t offset_0x1C; //0x001C
+    uint32_t offset_0x20; //0x0020
+    uint32_t offset_0x24; //0x0024
+    uint32_t offset_0x28; //0x0028
+    uint32_t offset_0x2C; //0x002C
+    uint8_t offset_0x30; //0x0030
+    char pad_0031[3]; //0x0031
+    uint32_t starting_index; //0x0034
+    uint32_t startin_vertex; //0x0038
+    char pad_003C[4]; //0x003C
+    class SomeRenderDataIdkAnonStruct N00001A0B; //0x0040
+    class SomeRenderDataIdkAnonStruct N00001A0C; //0x0090
+    uint32_t offset_0xE0; //0x00E0
+    uint32_t offset_0xE4; //0x00E4
+    uint32_t offset_0xE8; //0x00E8
+    uint32_t offset_0xEC; //0x00EC
+    void *anon_struct0; //0x00F0
+    void *anon_struct1; //0x00F4
+    Vector3 *verts_ptr0; //0x00F8
+    Vector3 *verts_ptr1; //0x00FC
+    Vector3 *normals_ptr; //0x0100
+    Vector3 *normals_ptr1; //0x0104
+    class rModelUVData *uvdata_ptr; //0x0108
+    class rModelUVData *uvdata_ptr1; //0x010C
+    char pad_0110[8]; //0x0110
+    class rModelWeightsData *weightdata_ptr0; //0x0118
+    class rModelWeightsData *weightdata_ptr1; //0x011C
+    class rModelSCMData *scmdata_ptr; //0x0120
+    class rModelSCMData *scmdata_ptr1; //0x0124
+    class RenderUVFudge *render_uv_fudge0; //0x0128
+    class RenderUVFudge *render_uv_fudge1; //0x012C
+    Vector3 *verts_ptr2; //0x0130
+}; //Size: 0x0134
+
+class RenderUVFudge
+{
+public:
+    int32_t some_uvx_fudge; //0x0000
+    int32_t some_uvy_fude; //0x0004
+    uint32_t N00001CC7; //0x0008
+    uint32_t N00001CC8; //0x000C
+    uint32_t N00001CC9; //0x0010
+    char pad_0014[4]; //0x0014
+}; //Size: 0x0018
+
+class cDrawSubUnk6
+{
+public:
+    char pad_0000[260]; //0x0000
+}; //Size: 0x0104
+
+class cDrawSubUnk7
+{
+public:
+    char pad_0000[4]; //0x0000
+}; //Size: 0x0004
+
+class IDraw
+{
+public:
+    void* N00001BDA[57]; //0x0000
+}; //Size: 0x00E4
+
+class IDrawOperate
+{
+public:
+    void* N00001F51[45]; //0x0000
+}; //Size: 0x00B4
+
+class N00002118
+{
+public:
+    Matrix4x4 N00002119; //0x0000
+    char pad_0040[288]; //0x0040
+}; //Size: 0x0160
+
+class rModelWeightsData
+{
+public:
+    uint16_t tri_skip_maybe; //0x0000
+    uint16_t N0000171E; //0x0002
+}; //Size: 0x0004
+#pragma endregion
 
 
+void* g_index_buffer_backing_area {};
+utility::Arena g_index_buffer {};
+
+struct IndexData {
+    std::uint32_t prim_count;
+    std::uint32_t index_count;
+    std::vector<uint16_t> ib;
+};
+
+IndexData make_index_buffer(SomeRenderingData* srd) {
+    assert(srd->vert_count);
+#ifndef NDEBUG
+    printf("make_index_buffer() vert_count:%d\n", srd->vert_count);
+#endif // !NDEBUG
+
+    IndexData result;
+    result.prim_count = 0;
+
+    std::uint16_t p1 = 0, p2 = 1;
+    bool  wnd = 1; // winding order
+    std::vector<uint16_t> indices; 
+
+    for (uint32_t i = 2; i < srd->vert_count; ++i) {
+        std::uint16_t p3 = i;
+        bool tri_skip;
+        if (srd->scmdata_ptr) {
+            tri_skip = srd->scmdata_ptr[i].triSkipFlag;
+        }
+        else { // stored in bone weight for characters
+            tri_skip = srd->weightdata_ptr0[i].tri_skip_maybe >> 0xF;
+        }
+        if (!tri_skip) {
+            // compute triangle normal and winding order
+            Vector3 v1 = srd->verts_ptr0[p1];
+            Vector3 v2 = srd->verts_ptr0[p2];
+            Vector3 v3 = srd->verts_ptr0[p3];
+
+            Vector3 face_edge1 = v3 - v1;
+            Vector3 face_edge2 = v2 - v1;
+            face_edge1 = glm::normalize(face_edge1);
+            face_edge2 = glm::normalize(face_edge2);
+
+            Vector3 z  = glm::cross(face_edge1, face_edge2);
+            z = glm::normalize(z);
+
+            Vector3 normal1 = srd->normals_ptr[p1];
+            Vector3 normal2 = srd->normals_ptr[p2];
+            Vector3 normal3 = srd->normals_ptr[p3];
+            Vector3 normal = glm::normalize(normal1 + normal2 + normal3);
+
+            // Add indices in the correct winding order
+            wnd = glm::dot(normal, z) > 0.0f;
+            if (wnd) {
+                indices.push_back(p1);
+                indices.push_back(p3);
+                indices.push_back(p2);
+            }
+            else {
+                indices.push_back(p1);
+                indices.push_back(p2);
+                indices.push_back(p3);
+            }
+            result.prim_count += 1;
+        }
+
+        // Update previous indices for next iteration
+        p1 = p2;
+        p2 = p3;
+    }
+
+    auto num_indices = std::distance(indices.begin(), indices.end());
+    srd->starting_index = num_indices;
+    result.index_count = num_indices;
+    result.ib = std::move(indices);
+    return result;
+}
+
+void cdraw_set_render_data_hook(SomeRenderingData* srd) {
+    if (!srd) { return; }
+    assert(srd->vert_count);
+    srd->starting_index = 0xDEADBEEF; // test
+
+#if 0
+    const size_t size = indices.size() * sizeof(WORD);
+    void* mem = utility::arena_alloc(&g_index_buffer, size );
+    memcpy(mem, indices.data(), size);
+#endif
+}
+
+
+static uintptr_t cdraw_set_render_data_struct_jmp = 0x0068BE10;
+// clang-format off
+static __declspec(naked) void cdraw_set_render_data_struct() {
+    __asm {
+        pushad
+        push edi
+        call cdraw_set_render_data_hook
+        add esp, 4
+        popad
+    originalCode:
+        mov [esp+18h], eax
+        cmp eax,edx
+        jmp dword ptr[cdraw_set_render_data_struct_jmp]
+    }
+}
+// clang-format on
+
+
+struct RDrawSomethingStruct
+{
+    DWORD verts_or_whatever;
+/*
+    uint8_t col_r0;
+    uint8_t col_g0;
+    uint8_t col_b0;
+    uint8_t col_a0;
+*/
+    uint8_t col_r1;
+    uint8_t col_g1;
+    uint8_t col_b1;
+    uint8_t col_a1;
+    Matrix4x4 *p_some_matrix;
+    struct SomeRenderingData *srd;
+    uint32_t some_flags;
+};
+
+size_t g_vertices_offset {0};
+size_t g_indices_offset {0};
+
+enum EVertexBufferType{
+    ARTICULATED_MODELS = 1, // unused i think
+    GUI_QUADS = 2,
+    WORLD = 3,
+};
+
+struct DIPData {
+    std::uint32_t vertex_count_ours;
+    std::uint32_t primitive_count_ours;
+    std::uint32_t index_count_ours;
+    std::vector<std::uint16_t> index_buffer_ours;
+    std::vector<VertexDef> vertex_buffer_ours;
+};
+
+static VertexDef* g_current_vertex_data_pointer = 0x0;
+static uintptr_t r_malloc_vertex_datas_jmp = 0x006E15AC;
+// clang-format off
+static __declspec(naked) void r_malloc_vertex_datas_detour() {
+    __asm {
+        mov eax,ecx
+        mov dword ptr [g_current_vertex_data_pointer], eax
+    originalCode:
+        add ecx,38h
+        jmp dword ptr[r_malloc_vertex_datas_jmp]
+    }
+}
+// clang-format on
+static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
+    if(!rdss) { return; }
+    //printf("|rdss->srd->vert_count=%d\n", rdss->srd->vert_count);
+
+    typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
+    static rPrepDrawDataSub6DF5A0 r_prep_draw_data_sub_6DF5A0 = (rPrepDrawDataSub6DF5A0)0x6DF5A0;
+    static int* some_graphic_struct_dword_252F490_ = (int*)0x0252F490;
+    ptrdiff_t start_offset = 0;
+    DWORD tri_strip_count = 0;
+
+#if 0
+    for (size_t resb = 0; resb < rdss->srd->vert_count; resb = (resb + 1)) {
+        typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
+        static cDrawVertexDataSetSub6DE480 cDraw_vertex_data_set_sub_6DE480 = (cDrawVertexDataSetSub6DE480)0x6DE480;
+        if (cDraw_vertex_data_set_sub_6DE480(resb, rdss)) {
+            r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
+            start_offset    = 0;
+            tri_strip_count = 0;
+        } else {
+            if (!tri_strip_count) {
+                uint32_t* dword_252FFA4 = (uint32_t*)0x0252FFA4;
+                uint32_t object_count = *dword_252FFA4;
+                start_offset  = 4 * object_count - 3;
+            }
+            ++tri_strip_count;
+        }
+    }
+#endif
+    DIPData* render_info = new DIPData;
+    render_info->vertex_buffer_ours.reserve(rdss->srd->vert_count);
+
+    for (size_t resb = 0; resb < rdss->srd->vert_count; resb = (resb + 1)) {
+        typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
+        static cDrawVertexDataSetSub6DE480 cDraw_vertex_data_set_sub_6DE480 = (cDrawVertexDataSetSub6DE480)0x6DE480;
+        cDraw_vertex_data_set_sub_6DE480(resb, rdss);
+        render_info->vertex_buffer_ours.emplace_back();
+        memcpy(&render_info->vertex_buffer_ours[resb], g_current_vertex_data_pointer, 0x38);
+    }
+
+    uint8_t value = EVertexBufferType::WORLD;
+    IndexData result = make_index_buffer(rdss->srd);
+    size_t ib_size = result.index_count * sizeof(uint16_t);
+
+    render_info->index_count_ours     = result.index_count;
+    render_info->primitive_count_ours = result.prim_count;
+    render_info->index_buffer_ours    = std::move(result.ib);
+    render_info->vertex_count_ours    = rdss->srd->vert_count;
+
+    r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
+
+#if 0
+    typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
+    static cDrawVertexDataSetSub6DE480 cDraw_vertex_data_set_sub_6DE480 = (cDrawVertexDataSetSub6DE480)0x6DE480;
+    size_t index_end = 0;
+    for(size_t i = index; i < rdss->srd->vert_count; i++) {
+        if (cDraw_vertex_data_set_sub_6DE480(index, rdss)) {
+            typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
+            uint32_t some_graphic_struct_dword_252F490_               = 0x0252F490;
+            static rPrepDrawDataSub6DF5A0 r_prep_draw_data_sub_6DF5A0 = (rPrepDrawDataSub6DF5A0)0x6DF5A0;
+            r_prep_draw_data_sub_6DF5A0(some_graphic_struct_dword_252F490_, g_vertices_offset, g_indices_offset);
+
+        }
+        index_end = i;
+    }
+        auto& indices = g_mapping.at((uintptr_t)rdss->srd->model_mesh_hdr_ptr);
+        size_t isize = indices.size() * sizeof(DWORD);
+        auto mem = utility::arena_alloc(&g_index_buffer,isize);
+        memcpy(mem, indices.data(), isize);
+
+        g_vertices_offset += (index_end - index);
+        g_indices_offset += indices.size();
+#endif
+
+}
+
+static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStruct* rdss, SomeRenderingData** srd) {
+    assert(srd0);
+    assert(srd0->vert_count);
+
+    assert(srd);
+    assert(*srd);
+
+    auto ass = *srd;
+    assert(srd0->vert_count == ass->vert_count);
+    //printf("|srd->vert_count=%d\n", srd0->vert_count);
+    const uint32_t vert_count = srd0->vert_count;
+
+    typedef int (__cdecl *cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct *a1, int vert_index, SomeRenderingData** a3);
+    cDrawcDrawSubPrepVertsGuiAndCharacters prep_verts_gui_and_characters = (cDrawcDrawSubPrepVertsGuiAndCharacters)0x006DD4A0;
+
+    typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
+    static rPrepDrawDataSub6DF5A0 r_prep_draw_data_sub_6DF5A0 = (rPrepDrawDataSub6DF5A0)0x6DF5A0;
+    static int* some_graphic_struct_dword_252F490_ = (int*)0x0252F490;
+    ptrdiff_t start_offset = 0;
+    DWORD tri_strip_count = 0;
+    uint8_t* g_render_ui_flag_byte_252F48C = (uint8_t*)0x0252F48C;
+
+    if (*g_render_ui_flag_byte_252F48C) {
+
+        for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
+            if (prep_verts_gui_and_characters(rdss, vert, srd)) {
+                r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
+                start_offset    = 0;
+                tri_strip_count = 0;
+            } else {
+                if (!tri_strip_count) {
+                    start_offset = rdss->verts_or_whatever;
+                    //printf("|start_offset=%d\n", start_offset);
+                }
+                ++tri_strip_count;
+            }
+        }
+        r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
+
+        return;
+    }
+
+    DIPData* render_info = new DIPData;
+    render_info->vertex_buffer_ours.reserve(rdss->srd->vert_count);
+
+    for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
+        prep_verts_gui_and_characters(rdss, vert, srd);
+        render_info->vertex_buffer_ours.emplace_back();
+        memcpy(&render_info->vertex_buffer_ours[vert], g_current_vertex_data_pointer, 0x38);
+    }
+
+    uint8_t value    = EVertexBufferType::WORLD;
+    IndexData result = make_index_buffer(srd0);
+
+    render_info->index_count_ours     = result.index_count;
+    render_info->primitive_count_ours = result.prim_count;
+    render_info->index_buffer_ours    = std::move(result.ib);
+    render_info->vertex_count_ours    = srd0->vert_count;
+
+    r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
+
+    //r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
+}
+
+static uintptr_t r_render_chars_jmp = 0x006DD43B;
+// clang-format off
+static __declspec(naked) void r_render_chars_detour() {
+    __asm {
+        
+        pushad
+        lea eax, [esp + 7Ch] ;v42
+        lea edx, [esp + 0B0h/*20h + 0ACh + -1Ch*/] ;rdss
+        push eax
+        push edx
+        push esi
+        call r_render_chars_intercept
+        add esp, 0Ch
+        popad
+        add esp, 10h // adjust stack memes
+        mov esi,[esp+0000024h]
+
+    originalCode:
+        jmp dword ptr[r_render_chars_jmp]
+    }
+}
+// clang-format on
+
+static uintptr_t r_render_world_jmp = 0x006DE417;
+// clang-format off
+static __declspec(naked) void r_render_world_detour() {
+    __asm {
+        pushad
+        lea edi, [esp+8ch]
+        push edi
+        call r_render_world_intercept
+        add esp, 4
+        popad
+        add esp, 18h // adjust stack memes
+        mov esi,[esp+000001BCh]
+
+    originalCode:
+        jmp dword ptr[r_render_world_jmp]
+    }
+}
+// clang-format on
+
+static void r_reset_rendering_globals() {
+    g_indices_offset           = 0;
+    g_vertices_offset          = 0;
+    g_index_buffer.curr_offset = 0;
+    g_index_buffer.prev_offset = 0;
+}
+
+static uintptr_t r_reset_rendering_globals_jmp = 0x006E17F4;
+// clang-format off
+static __declspec(naked) void r_reset_rendering_globals_detour() {
+    __asm {
+        pushad
+        call r_reset_rendering_globals
+        popad
+
+    originalCode:
+        jmp dword ptr[r_reset_rendering_globals_jmp]
+    }
+}
+// clang-format on
+
+RendererReplace::~RendererReplace() {
+    free(g_index_buffer_backing_area);
+}
+
+
+std::unique_ptr<FunctionHook> g_d3d_upload_to_vram_sub_6e18f0_hook;
+
+LPDIRECT3DINDEXBUFFER9 g_pib = NULL;
+
+static int __cdecl d3d_switch_on_buffer_type_and_upload_to_vram_sub_6E18F0(int a1) {
+    if (!g_d3d_upload_to_vram_sub_6e18f0_hook) { return D3D_OK; }
+
+    static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
+    static IDirect3DDevice9* pdevice = device_ptr->device;
+
+    uint8_t  type = (a1 >> 24) & 0xFF;
+    if (type == EVertexBufferType::WORLD) {
+#if 0
+        
+        UINT indices_size = g_index_buffer.curr_offset;
+        if (FAILED(pdevice->CreateIndexBuffer(indices_size,
+            0, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &g_pib, NULL))) {
+            return E_FAIL;
+        }
+        void* p_indices;
+        if (FAILED(g_pib->Lock(0, indices_size, (void**)&p_indices, 0))) {
+            return E_FAIL;
+        }
+        memcpy(p_indices, g_index_buffer.buf, indices_size);
+        g_pib->Unlock();
+#endif
+    }
+    auto result = g_d3d_upload_to_vram_sub_6e18f0_hook->get_original<decltype(d3d_switch_on_buffer_type_and_upload_to_vram_sub_6E18F0)>()(type);
+    if (g_pib && type == EVertexBufferType::WORLD) {
+        pdevice->SetIndices(g_pib);
+    }
+    return result;
+}
+
+
+std::unique_ptr<FunctionHook> g_d3d_draw_primitive_sub_6E1C00_hook;
+static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int primitve_count, char a3) {
+    if(!g_d3d_draw_primitive_sub_6E1C00_hook) {return;}
+
+    static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
+    static IDirect3DDevice9* pdevice = device_ptr->device;
+
+    uint8_t  type = (vertexCount >> 24) & 0xFF;
+    uint32_t vert_count = vertexCount & 0x00FFFFFF;
+    if (type == EVertexBufferType::WORLD) {
+#if 0
+        typedef int (__cdecl *D3DCreateVB)(int a1);
+        static D3DCreateVB create_vb_fptr = (D3DCreateVB)0x006E18F0;
+        create_vb_fptr(vertexCount);
+#endif
+        LPDIRECT3DINDEXBUFFER9 pIB  = NULL;
+        LPDIRECT3DVERTEXBUFFER9 pVB = NULL;
+
+        DIPData* dd = (DIPData*)primitve_count;
+
+        // create and lock vb
+        UINT vbsize = dd->vertex_buffer_ours.size() * 0x38;
+        constexpr auto vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
+        if (FAILED(pdevice->CreateVertexBuffer( vbsize,
+            0, vertex_format_dmc3_3d, D3DPOOL_DEFAULT, &pVB, NULL))) {
+            return;
+        }
+        void* pvertices;
+        if (FAILED(pVB->Lock(0, vbsize, (void**)&pvertices, 0))) {
+            return;
+        }
+        memcpy(pvertices, dd->vertex_buffer_ours.data(), vbsize);
+        pVB->Unlock();
+
+        // create and lock ib
+        UINT ibsize = dd->index_buffer_ours.size() * sizeof(std::uint16_t);
+        if (FAILED(pdevice->CreateIndexBuffer(ibsize,
+            0, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &pIB, NULL))) {
+            return;
+        }
+
+        void* pindices;
+        if (FAILED(pIB->Lock(0, ibsize, (void**)&pindices, 0))) {
+            return ;
+        }
+        memcpy(pindices, dd->index_buffer_ours.data(), ibsize);
+        pIB->Unlock();
+
+        // draw
+        pdevice->SetStreamSource(0, pVB, 0, sizeof(VertexDef));
+        pdevice->SetFVF(vertex_format_dmc3_3d);
+        pdevice->SetIndices(pIB);
+
+        auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, dd->vertex_buffer_ours.size(), 0, dd->primitive_count_ours);
+        if (FAILED(hr)) {
+            fprintf(stderr, "Error: %s error description: %s\n",
+                    DXGetErrorString(hr), DXGetErrorDescription(hr));
+        }
+
+        pVB->Release();
+        pIB->Release();
+        delete dd;
+    }
+    else {
+        g_d3d_draw_primitive_sub_6E1C00_hook->get_original<decltype(d3d_draw_primitive_sub_6E1C00)>()(vertexCount, primitve_count, a3);
+    }
+}
 
 std::optional<std::string> RendererReplace::on_initialize() {
     // WARNING(): dirty hack to only init once here:
@@ -1012,11 +1968,42 @@ std::optional<std::string> RendererReplace::on_initialize() {
     }
     init = true;
     g_rreplace = this;
-    return Mod::on_initialize();
-    m_r_prep_mesh_datas_006DE498 = std::make_unique<FunctionHook>(0x006DE498, &r_prep_mesh_datas);
-    if (!m_r_prep_mesh_datas_006DE498->create()) {
+
+    //g_index_buffer_backing_area = malloc(INDEX_BUFFER_SIZE);
+    //utility::arena_init(&g_index_buffer, g_index_buffer_backing_area, INDEX_BUFFER_SIZE);
+
+#if 0
+    m_cdraw_set_render_data_hook = std::make_unique<FunctionHook>(0x0068BE0A, &cdraw_set_render_data_struct);
+    if (!m_cdraw_set_render_data_hook->create()) {
         return "failed to hook prep mesh datas";
     }
+#endif
+    m_r_render_prep_world_hook = std::make_unique<FunctionHook>(0x006DE3BC, &r_render_world_detour);
+    if (!m_r_render_prep_world_hook->create()) {
+        return "failed to hook draw world";
+    }
+
+    m_r_render_prep_articulated_models_hook = std::make_unique<FunctionHook>(0x006DD3D3, &r_render_chars_detour);
+    if (!m_r_render_prep_articulated_models_hook->create()) {
+        return "failed to hook render characters and guis";
+    }
+    g_d3d_upload_to_vram_sub_6e18f0_hook = std::make_unique<FunctionHook>(0x006E18F0, &d3d_switch_on_buffer_type_and_upload_to_vram_sub_6E18F0);
+    if (!g_d3d_upload_to_vram_sub_6e18f0_hook->create()) {
+        return "failed to hook d3d_updload_to_vram";
+    }
+    g_d3d_draw_primitive_sub_6E1C00_hook = std::make_unique<FunctionHook>(0x006E1C00, &d3d_draw_primitive_sub_6E1C00);
+    if (!g_d3d_draw_primitive_sub_6E1C00_hook->create()) {
+        return "failed to hook d3d_draw_primitive";
+    }
+    m_r_render_reset_globals_hook = std::make_unique<FunctionHook>(0x006E17EF, &r_reset_rendering_globals_detour);
+    if (!m_r_render_reset_globals_hook->create()) {
+        return "failed to create render globals reset hook";
+    }
+    m_r_render_vertex_data_hook = std::make_unique<FunctionHook>(0x006E15A7, &r_malloc_vertex_datas_detour);
+    if (!m_r_render_vertex_data_hook->create()) {
+        return "failed to create render globals reset hook";
+    }
+    return Mod::on_initialize();
 
 
     m_d3d_dispatch_drawcall_006DF65D = std::make_unique<FunctionHook>(0x006DF65D, &d3d_dispatch_drawcall);
@@ -1082,8 +2069,11 @@ std::optional<std::string> RendererReplace::on_initialize() {
 }
 
 void RendererReplace::on_draw_ui() {
-    ImGui::InputInt("DIP base_vertex_index", &g_temp_dip_things.base_vertex_index);
-    ImGui::InputInt("DIP min_vertex_index", (int*)&g_temp_dip_things.min_vertex_index);
+    ImGui::InputInt("base_vertex_index", &g_temp_dip_things.base_vertex_index);
+    ImGui::InputInt("min_vertex_index", (int*) &g_temp_dip_things.min_vertex_index);
+    ImGui::InputInt("num_vertices", (int*) &g_temp_dip_things.num_vertices);
+    ImGui::InputInt("start_index", (int*) &g_temp_dip_things.start_index);
+    ImGui::InputInt("prim_count", (int*) &g_temp_dip_things.prim_count);
 }
 
 //TODO

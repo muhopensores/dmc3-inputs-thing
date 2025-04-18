@@ -11,6 +11,8 @@
 static HMODULE g_dinput;
 static HMODULE g_styleswitcher;
 
+static RendererReplace* g_renderer_replace;
+
 #ifdef DINPUT_MODE
 extern "C" {
 // DirectInput8Create wrapper for dinput8.dll
@@ -85,6 +87,7 @@ void WINAPI startup_thread() {
         failed();
     }
     g_framework = std::make_unique<ModFramework>();
+    g_framework->m_rr = g_renderer_replace;
 #endif
 #ifdef DSOUND_MODE
     g_framework = std::make_unique<ModFramework>();
@@ -203,8 +206,10 @@ BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
         }
 #endif
 
-        //g_renderer_replace = new RendererReplace();
-        //g_renderer_replace->on_initialize();
+#if 1
+        g_renderer_replace = new RendererReplace();
+        g_renderer_replace->on_initialize();
+#endif
         CreateThread(nullptr, 0, (LPTHREAD_START_ROUTINE)startup_thread, nullptr, 0, nullptr);
     }
     if (reason == DLL_PROCESS_DETACH) {

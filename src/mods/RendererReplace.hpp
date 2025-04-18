@@ -15,6 +15,7 @@ struct d3d_vbuffer
 class RendererReplace : public Mod {
 public:
   RendererReplace() = default;
+  ~RendererReplace();
   // mod name string for config
   std::string_view get_name() const override { return "RendererReplace"; }
   // called by m_mods->init() you'd want to override this
@@ -42,7 +43,11 @@ private:
     std::unique_ptr<FunctionHook> m_d3d_draw_primitive_006E1C5B;
 
     // temp
-    std::unique_ptr<FunctionHook> m_r_prep_mesh_datas_006DE498;
+    std::unique_ptr<FunctionHook> m_cdraw_set_render_data_hook;
+    std::unique_ptr<FunctionHook> m_r_render_prep_world_hook;
+    std::unique_ptr<FunctionHook> m_r_render_prep_articulated_models_hook;
+    std::unique_ptr<FunctionHook> m_r_render_reset_globals_hook;
+    std::unique_ptr<FunctionHook> m_r_render_vertex_data_hook;
 
     std::unique_ptr<FunctionHook> m_d3d_dispatch_drawcall_006DF65D;
     std::unique_ptr<FunctionHook> m_d3d_before_unlock_006E1B54;
