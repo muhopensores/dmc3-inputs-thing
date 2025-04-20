@@ -256,8 +256,8 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
     g_vfx_bank = cfg.get<int>("StyleSwitchVfxBank").value_or(3);
     g_vfx_a3   = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
 
-    g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
-    g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
+    g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
+    g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
     g_sfx_preset.a3 = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
