@@ -22,7 +22,7 @@ public:
   // you are in the imgui window here.
   void on_draw_ui() override;
   // on_draw_debug_ui() is called when debug window shows up
-  //void on_draw_debug_ui() override;
+  void on_draw_debug_ui() override;
 private:
 
   // function hook instance for our detour, convinient wrapper 

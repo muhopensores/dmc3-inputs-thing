@@ -3,6 +3,7 @@
 #include "utility/Compressed.hpp"
 #include "../Sfx.cpp"
 #include "d3dx9.h"
+#include "CustomAlolcator.hpp"
 
 static CPlDante* g_char_ptr     = nullptr;
 static cCameraCtrl* g_cam_ptr   = nullptr;
@@ -55,10 +56,11 @@ static std::array sfx_presets = {
 	SfxPreset { "Crazy Combo start SFX", 0, 80, 0 },
 	SfxPreset { "Enemy DT SFX", 0, 90, 0 },
 	SfxPreset { "Player DT start SFX", 1, 80, 0 },
-	//SfxPreset { "Custom", -1, -1, -1 }
+	SfxPreset { "Custom", -1, -1, -1 }
 };
 
 static SfxPreset g_sfx_preset = sfx_presets[0];
+static size_t g_sfx_preset_index = 0;
 
 struct VfxPreset {
     const char* name;
@@ -66,11 +68,14 @@ struct VfxPreset {
     int bank, a3;
 };
 
-std::array vfx_presets = {
+static constexpr std::array vfx_presets = {
     VfxPreset { "Circly thing fx", 218, 3, 8 },
     VfxPreset { "Crazy Combo fx",  144, 3, 8 },
     VfxPreset { "DT fx",          0xDC, 3, 8 },
+    VfxPreset { "Custom",            0, 0, 0 },
 };
+
+static size_t g_vfx_preset_index = 0;
 
 enum DANTE_STYLES {
 	SWORDMASTER, GUNSLINGER, TRICKSTER, ROYALGUARD, QUICKSILVER, GERMANWORD, STYLE_MAX
@@ -198,6 +203,29 @@ void style_switch_efx_load_textures() {
 #endif
 
 std::optional<std::string> StyleSwitchFX::on_initialize() {
+    // HACK() for style switcher with more memory patch
+    if(g_mem_patch_applied) {
+        // max out all styles, cba to look where it loads save data
+        struct StyleData {
+            uint32_t N0000004F { 0x2 }; //0x0000
+            uint32_t N00000050 { 0x2 }; //0x0004
+            uint32_t N00000051 { 0x2 }; //0x0008
+            uint32_t N00000052 { 0x2 }; //0x000C
+            uint32_t N00000053 { 0x2 }; //0x0010
+            uint32_t N00000054 { 0x2 }; //0x0014
+            uint32_t N00000055 { 0x0 }; //0x0018
+            float N00000056 { 99999.0f }; //0x001C
+            float N00000057 { 99999.0f }; //0x0020
+            float N00000058 { 99999.0f }; //0x0024
+            float N00000059 { 99999.0f }; //0x0028
+            float N0000005A { 99999.0f }; //0x002C
+            float N0000005B { 0.0f }; //0x0030
+        }; //Size: 0x0034
+        StyleData s1;
+        // send those bytes to where style switcher expects them
+        memcpy((void*)0x00C38B6C, &s1, sizeof(s1));
+    }
+
     // TODOOOOO(important): add soloud audio
     // g_char_ptr = (CPlDante*)0x1C8A600;
     g_char_ptr = devil3_sdk::get_pl_dante();
@@ -255,10 +283,12 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
     g_vfx_id   = cfg.get<int>("StyleSwitchVfxId").value_or(218);
     g_vfx_bank = cfg.get<int>("StyleSwitchVfxBank").value_or(3);
     g_vfx_a3   = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
+    g_vfx_preset_index = cfg.get<size_t>("StyleSwitchVfxIndex").value_or(0);
 
     g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
     g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
     g_sfx_preset.a3 = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
+    g_sfx_preset_index = cfg.get<size_t>("StyleSwitchSfxIndex").value_or(0);
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
         g_style_colors[i] = cfg.get<glm::vec4>(g_style_names[i]).value_or(g_default_colors[i]);
@@ -276,10 +306,12 @@ void StyleSwitchFX::on_config_save(utility::Config& cfg) {
     cfg.set<int>("StyleSwitchVfxId",   g_vfx_id);
     cfg.set<int>("StyleSwitchVfxBank", g_vfx_bank);
     cfg.set<int>("StyleSwitchVfxIdk",  g_vfx_a3);
+    cfg.set<size_t>("StyleSwitchVfxIndex", g_vfx_preset_index);
 
-    cfg.set<int16_t>("StyleSwitchSfxId",   g_sfx_preset.a1);
-    cfg.set<int16_t>("StyleSwitchSfxBank", g_sfx_preset.a2);
-    cfg.set<int>    ("StyleSwitchSfxIdk",  g_sfx_preset.a3);
+    cfg.set<int16_t>("StyleSwitchSfxId", g_sfx_preset.a2);
+    cfg.set<int16_t>("StyleSwitchSfxBank", g_sfx_preset.a1);
+    cfg.set<int> ("StyleSwitchSfxIdk", g_sfx_preset.a3);
+    cfg.set<size_t>("StyleSwitchSfxIndex", g_sfx_preset_index);
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
         cfg.set<glm::vec4>(g_style_names[i], g_style_colors[i]);
@@ -343,7 +375,7 @@ void StyleSwitchFX::on_draw_ui() {
     if (g_enable_mod) {
 
         int item_current_idx = 0;
-        static int selected_combobox_index = 0;
+        static int selected_combobox_index = g_vfx_preset_index;
         if (ImGui::BeginCombo("VFX preset", vfx_presets[selected_combobox_index].name)) {
             for (size_t i = 0; i < vfx_presets.size(); i++) {
                 const bool is_selected = (item_current_idx == i);
@@ -351,9 +383,16 @@ void StyleSwitchFX::on_draw_ui() {
                 if (ImGui::Selectable(vfx_presets[i].name, is_selected)) {
                     item_current_idx  = i;
                     selected_combobox_index = i;
-                    g_vfx_id         = vfx_presets[i].id;
-                    g_vfx_bank       = vfx_presets[i].bank;
-                    g_vfx_a3         = vfx_presets[i].a3;
+                    g_vfx_preset_index = selected_combobox_index;
+                    if(vfx_presets[i].id > 0) {
+                        g_vfx_id = vfx_presets[i].id;
+                    }
+                    if (vfx_presets[i].bank > 0) {
+                        g_vfx_bank = vfx_presets[i].bank;
+                    }
+                    if (vfx_presets[i].a3 > 0) {
+                        g_vfx_a3 = vfx_presets[i].a3;
+                    }
                 }
                 if (is_selected) {
                     ImGui::SetItemDefaultFocus();
@@ -361,15 +400,17 @@ void StyleSwitchFX::on_draw_ui() {
             }
             ImGui::EndCombo();
         }
-        ImGui::InputInt("g_vfx_id", &g_vfx_id);
-        ImGui::InputInt("g_vfx_bank", &g_vfx_bank);
-        ImGui::InputInt("g_vfx_a3", &g_vfx_a3);
+        if (g_vfx_preset_index == 3) {
+            ImGui::InputInt("g_vfx_id", &g_vfx_id);
+            ImGui::InputInt("g_vfx_bank", &g_vfx_bank);
+            ImGui::InputInt("g_vfx_a3", &g_vfx_a3);
+        }
     }
 
     ImGui::Checkbox("Enable sound effect", &g_enable_sound);
     if (g_enable_sound) {
         int item_current_idx = 0;
-        static int selected_combobox_index = 0;
+        static int selected_combobox_index = g_sfx_preset_index;
         if (ImGui::BeginCombo("SFX preset", sfx_presets[selected_combobox_index].name)) {
             for (size_t i = 0; i < sfx_presets.size(); i++) {
                 const bool is_selected = (item_current_idx == i);
@@ -377,10 +418,17 @@ void StyleSwitchFX::on_draw_ui() {
                 if (ImGui::Selectable(sfx_presets[i].name, is_selected)) {
                     item_current_idx  = i;
                     selected_combobox_index = i;
+                    g_sfx_preset_index = selected_combobox_index;
                     g_sfx_preset.name = sfx_presets[i].name;
-                    g_sfx_preset.a1   = sfx_presets[i].a1;
-                    g_sfx_preset.a2   = sfx_presets[i].a2;
-                    g_sfx_preset.a3   = sfx_presets[i].a3;
+                    if ( sfx_presets[i].a1 != -1) {
+                        g_sfx_preset.a1 = sfx_presets[i].a1;
+                    }
+                    if ( sfx_presets[i].a2 != -1) {
+                        g_sfx_preset.a2 = sfx_presets[i].a2;
+                    }
+                    if ( sfx_presets[i].a3 != -1) {
+                        g_sfx_preset.a3 = sfx_presets[i].a3;
+                    }
                 }
                 if (is_selected) {
                     ImGui::SetItemDefaultFocus();
@@ -388,20 +436,22 @@ void StyleSwitchFX::on_draw_ui() {
             }
             ImGui::EndCombo();
         }
-        int pa1 = g_sfx_preset.a1;
-        int pa2 = g_sfx_preset.a2;
+        if (g_sfx_preset_index == 5) {
+            int pa1 = g_sfx_preset.a1;
+            int pa2 = g_sfx_preset.a2;
 
-        if (ImGui::InputInt("sfx bank", &pa1)) {
-            g_sfx_preset.a1 = safe_truncate_to_int16(pa1);
-        }
-        if (ImGui::InputInt("sfx id", &pa2)) {
-            g_sfx_preset.a2 = safe_truncate_to_int16(pa2);
-        }
-        ImGui::InputInt("idk", &g_sfx_preset.a3);
-        ImGui::SameLine(); 
+            if (ImGui::InputInt("sfx bank", &pa1)) {
+                g_sfx_preset.a1 = safe_truncate_to_int16(pa1);
+            }
+            if (ImGui::InputInt("sfx id", &pa2)) {
+                g_sfx_preset.a2 = safe_truncate_to_int16(pa2);
+            }
+            ImGui::InputInt("idk", &g_sfx_preset.a3);
+            ImGui::SameLine();
 
-        if (ImGui::Button("test play sound")) {
-            devil3_sdk::play_sound(g_sfx_preset.a1, g_sfx_preset.a2, g_sfx_preset.a3);
+            if (ImGui::Button("test play sound")) {
+                devil3_sdk::play_sound(g_sfx_preset.a1, g_sfx_preset.a2, g_sfx_preset.a3);
+            }
         }
     }
 
@@ -430,6 +480,11 @@ void StyleSwitchFX::on_draw_ui() {
     for (int i = 0; i < STYLE_MAX; i++) {
         ImGui::ColorEdit3(g_style_names[i], (float*)&g_style_colors[i]);
     }
+}
+
+void StyleSwitchFX::on_draw_debug_ui()
+{
+    ImGui::Text("cPlDante: %p", g_char_ptr);
 }
 
 void StyleSwitchFX::play_sound()

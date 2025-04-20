@@ -127,9 +127,13 @@ void Mods::on_frame() const {
     for (auto& mod : m_mods) {
         mod->on_frame();
     }
+    if(g_framework->m_rr) {
+        g_framework->m_rr->on_frame();
+    }
 }
 
 void Mods::on_draw_debug_ui() const {
+    ImGui::Text("Framerates: %f", ImGui::GetIO().Framerate);
 	for (auto& mod : m_mods) {
 		mod->on_draw_debug_ui();
 	}
