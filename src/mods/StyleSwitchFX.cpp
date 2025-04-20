@@ -285,8 +285,8 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
     g_vfx_a3   = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
     g_vfx_preset_index = cfg.get<size_t>("StyleSwitchVfxIndex").value_or(0);
 
-    g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
-    g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
+    g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
+    g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
     g_sfx_preset.a3 = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
     g_sfx_preset_index = cfg.get<size_t>("StyleSwitchSfxIndex").value_or(0);
 
