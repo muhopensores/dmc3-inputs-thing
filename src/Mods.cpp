@@ -17,7 +17,7 @@
 #include "mods/DebugDraw.hpp"
 #include "mods/RgTimer.hpp"
 #include "mods/NoHeightRestriction.hpp"
-// #include "mods/EnemySoulEaterNoInvis.hpp" // affects other enemies, commented out until I find some enemy ID compare
+#include "mods/EnemySoulEaterNoInvis.hpp"
 #include "mods/TurnSpeed.hpp"
 #include "mods/EnemyStepCooldown.hpp"
 #include "mods/EnemyStates.hpp"
@@ -69,7 +69,7 @@ void Mods::load_mods() {
 	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
 	m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
     m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
-	// m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
 	m_mods.emplace_back(std::make_unique<EnemyStates>());
 	m_mods.emplace_back(std::make_unique<TurnSpeed>());
 	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
