@@ -121,6 +121,7 @@ set(FRAMEWORK_SRC
     ModFramework.hpp
     ModFramework.cpp
     Config.hpp
+    Profiler.hpp
 )
 
 source_group("imgui", FILES ${IMGUI_SRC})
@@ -145,7 +146,7 @@ add_library(${CMAKE_PROJECT_NAME} SHARED
 
 #target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
 #target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 WickedEngine_Windows d3d12 dxgi)
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer)
+target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer legacy_stdio_definitions)
 target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
 
 include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
@@ -167,7 +168,7 @@ add_library(dsound SHARED
             ${FRAMEWORK_SRC}
 )
 
-target_link_libraries(dsound PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer)
+target_link_libraries(dsound PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer legacy_stdio_definitions)
 target_compile_features(dsound PUBLIC cxx_std_17)
 
 include_directories(dsound ${CMAKE_CURRENT_SOURCE_DIR})
