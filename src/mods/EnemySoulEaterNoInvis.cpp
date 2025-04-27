@@ -20,15 +20,15 @@ std::optional<std::string> EnemySoulEaterNoInvis::on_initialize() {
   if (!install_hook_absolute(0x79F163F7, m_function_hook, &detour, &jmp_ret, 6)) {
     // return a error string in case something goes wrong
     spdlog::error("[{}] failed to initialize", get_name());
-    return "Failed to initialize NoHeightRestriction";
+    return "Failed to initialize EnemySoulEaterNoInvis";
   }
   */
-  patch = Patch::create(0x0065BFE4, {0x90, 0x90}, false);
+  patch = Patch::create(0x004A1C9F, {0xEB}, false);
   return Mod::on_initialize();
 }
 
 void EnemySoulEaterNoInvis::on_draw_ui() {
-  if (ImGui::Checkbox("Disable Soul Eater Invisibility", &modEnabled)) {
+  if (ImGui::Checkbox("Look at Soul Eaters", &modEnabled)) {
     toggle(modEnabled);
   }
 }
