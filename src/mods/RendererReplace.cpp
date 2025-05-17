@@ -1518,12 +1518,15 @@ IndexData make_index_buffer(SomeRenderingData* srd) {
 
     for (uint32_t i = 2; i < srd->vert_count; ++i) {
         std::uint16_t p3 = i;
-        bool tri_skip;
-        if (srd->scmdata_ptr) {
-            tri_skip = srd->scmdata_ptr[i].triSkipFlag;
+        bool tri_skip {false};
+        if (srd->scmdata_ptr) { // static meshes
+            tri_skip = srd->scmdata_ptr[p3].triSkipFlag;
+            if (srd->weightdata_ptr0) {
+                tri_skip = ((srd->weightdata_ptr0[p3].bone_weights >> 0xF) & 1);
+            }
         }
         else { // stored in bone weight for characters
-            tri_skip = ((srd->weightdata_ptr0[i].bone_weights >> 0xF) & 1);
+            tri_skip = ((srd->weightdata_ptr0[p3].bone_weights >> 0xF) & 1);
         }
         if (!tri_skip) {
             // compute triangle normal and winding order
@@ -1631,6 +1634,9 @@ enum EVertexBufferType{
     WORLD = 3,
 };
 
+// TODO(): find where to stick this
+static constexpr DWORD vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
+
 struct DIPData {
     std::int32_t ref_count {0};
     std::uint32_t vertex_count_ours;
@@ -1638,11 +1644,69 @@ struct DIPData {
     std::uint32_t index_count_ours;
     std::vector<std::uint16_t> index_buffer_ours;
     std::vector<VertexDef> vertex_buffer_ours;
+
+    LPDIRECT3DVERTEXBUFFER9 p_vb = NULL;
+    LPDIRECT3DINDEXBUFFER9  p_ib = NULL;
+
 };
 
+static void release_buffers(DIPData& dip) {
+    if (dip.p_vb) {
+        dip.p_vb->Release();
+        dip.p_vb = nullptr;
+    }
+    if (dip.p_ib) {
+        dip.p_ib->Release();
+        dip.p_ib = nullptr;
+    }
+}
 
-// TODO(): find where to stick this
-static constexpr DWORD vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
+static void create_buffers(DIPData& dip, D3DPOOL pool = D3DPOOL_DEFAULT) {
+    static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
+    static IDirect3DDevice9* pdevice = device_ptr->device;
+    // (re)create vertex and idex buffer
+    {
+        // release existing
+        release_buffers(dip);
+
+        // create vb
+        if (FAILED(pdevice->CreateVertexBuffer(dip.vertex_buffer_ours.size() * sizeof(VertexDef),
+                                               0, vertex_format_dmc3_3d, pool, &dip.p_vb, NULL))) {
+            assert("create_vb failed!");
+            return;
+        }
+        // create ib
+        if (FAILED(pdevice->CreateIndexBuffer(dip.index_buffer_ours.size() * sizeof(WORD),
+                                              0, D3DFMT_INDEX16, pool, &dip.p_ib, NULL))) {
+            assert("create_ib failed!");
+            return;
+        }
+    }
+    // upload data to gpu
+    {
+        assert(dip.p_vb);
+        // upload vert data
+        void* pvertices;
+        const size_t vbsize = dip.vertex_buffer_ours.size() * sizeof(VertexDef);
+        if (FAILED(dip.p_vb->Lock(0, vbsize, (void**)&pvertices, 0))) {
+            return;
+        }
+        memcpy(pvertices, dip.vertex_buffer_ours.data(), vbsize);
+        dip.p_vb->Unlock();
+
+        assert(dip.p_ib);
+        // upload index data
+        void* pindices;
+        const size_t ibsize = dip.index_buffer_ours.size() * sizeof(WORD);
+        if (FAILED(dip.p_ib->Lock(0, ibsize, (void**)&pindices, 0))) {
+            return;
+        }
+        memcpy(pindices, dip.index_buffer_ours.data(), ibsize);
+        dip.p_ib->Unlock();
+    }
+}
+
+
 
 struct DynamicRenderBuffer {
     static const size_t round_to_multiple(size_t number, size_t multiple) {
@@ -1775,6 +1839,10 @@ struct DynamicRenderBuffer {
 static DynamicRenderBuffer* g_dyn_ren_buf {nullptr};
 
 static std::map<size_t, DIPData*> g_dip_map;
+static int g_current_obj {0};
+static int g_skipdraw {1};
+std::vector<VertexDef> g_vertex_data;
+std::vector<WORD> g_index_data;
 
 static VertexDef* g_current_vertex_data_pointer = 0x0;
 static uintptr_t r_malloc_vertex_datas_jmp = 0x006E15AC;
@@ -1789,6 +1857,7 @@ static __declspec(naked) void r_malloc_vertex_datas_detour() {
     }
 }
 // clang-format on
+
 static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
     if(!rdss) { return; }
     //printf("|rdss->srd->vert_count=%d\n", rdss->srd->vert_count);
@@ -1819,6 +1888,7 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
 #endif
     uint8_t value = EVertexBufferType::WORLD;
 
+#if 0
     size_t hash = std::hash<uintptr_t>()((uintptr_t)rdss->srd->vert_count + (uintptr_t)rdss->srd->tex_ind + (uintptr_t)rdss->srd->model_mesh_hdr_ptr);
     if (auto& it = g_dip_map.find(hash); it != g_dip_map.end()) {
         DIPData* render_info = it->second;
@@ -1829,6 +1899,7 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
         r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)it->second);
         return;
     }
+#endif
 
     DIPData* render_info = new DIPData;
     render_info->vertex_buffer_ours.reserve(rdss->srd->vert_count);
@@ -1850,12 +1921,18 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
     render_info->vertex_count_ours    = rdss->srd->vert_count;
     render_info->ref_count -= 1;
 
+    create_buffers(*render_info);
+
+#if 0
     g_dyn_ren_buf->check_and_flag_for_resize(
         render_info->vertex_buffer_ours.size(),
         render_info->index_buffer_ours.size());
+#endif
 
     r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
+#if 0
     g_dip_map.emplace(hash, render_info);
+#endif
 
 #if 0
     typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
@@ -1886,6 +1963,9 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
     assert(srd0);
     assert(srd0->vert_count);
 
+    if ((g_current_obj == g_skipdraw)) {
+        return;
+    }
     const uint32_t vert_count = srd0->vert_count;
 
     typedef int (__cdecl *cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct *a1, int vert_index, SomeRenderingData** a3);
@@ -1899,6 +1979,7 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
     uint8_t* g_render_ui_flag_byte_252F48C = (uint8_t*)0x0252F48C;
 
     if (*g_render_ui_flag_byte_252F48C) {
+#if 0
 
         for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
             if (prep_verts_gui_and_characters(rdss, vert, srd)) {
@@ -1915,22 +1996,27 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
         }
         r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
 
+#endif
         return;
     }
 
     uint8_t value    = EVertexBufferType::WORLD;
+#if 0
     size_t hash = std::hash<uintptr_t>()((uintptr_t)srd0->vert_count + (uintptr_t)srd0->tex_ind + (uintptr_t)srd0->model_mesh_hdr_ptr);
     if (auto& it = g_dip_map.find(hash); it != g_dip_map.end()) {
 
         DIPData* render_info = it->second;
         render_info->ref_count -= 1;
+#if 0
         g_dyn_ren_buf->check_and_flag_for_resize(
             render_info->vertex_buffer_ours.size(),
             render_info->index_buffer_ours.size());
+#endif
 
         r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)it->second);
         return;
     }
+#endif
     DIPData* render_info;
         render_info = new DIPData;
         render_info->vertex_buffer_ours.reserve(vert_count);
@@ -1952,13 +2038,19 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
         render_info->vertex_count_ours    = srd0->vert_count;
         render_info->ref_count -= 1;
 
+    create_buffers(*render_info);
+#if 0
     g_dyn_ren_buf->check_and_flag_for_resize(
         render_info->vertex_buffer_ours.size(),
         render_info->index_buffer_ours.size());
+#endif
 
+#if 0
     g_dip_map.emplace(hash, render_info);
     return;
+#endif
 
+    g_current_obj += 1;
     r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
 
     //r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
@@ -2011,19 +2103,31 @@ static void r_reset_rendering_globals() {
     g_vertices_offset          = 0;
     g_index_buffer.curr_offset = 0;
     g_index_buffer.prev_offset = 0;
+    g_current_obj = 0;
 
+    g_vertex_data.clear();
+    g_index_data.clear();
+#if 0
     g_dyn_ren_buf->reset();
+#endif
     // clean up all unreferenced models
+#if 0
     for (auto it = g_dip_map.begin(); it != g_dip_map.end();) {
         it->second->ref_count += 1;
         if (!it->second || it->second->ref_count > 32) {
+            DIPData& render_info = *it->second;
+            release_buffers(render_info);
+            render_info.vertex_buffer_ours.clear();
+            render_info.index_buffer_ours.clear();
             delete it->second;
+            it->second = 0;
             it = g_dip_map.erase(it);
         }
         else {
             ++it;
         }
     }
+#endif
 }
 
 static uintptr_t r_reset_rendering_globals_jmp = 0x006E17F4;
@@ -2094,13 +2198,21 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         DIPData* dd = (DIPData*)primitve_count;
 
         // upload data to vb & ib
+#if 0
         g_dyn_ren_buf->re_create_buffers(pdevice);
         g_dyn_ren_buf->upload(dd->vertex_buffer_ours, dd->index_buffer_ours);
+#endif
 
         // draw
+#if 0
         pdevice->SetStreamSource(0, g_dyn_ren_buf->p_vb, 0, sizeof(VertexDef));
         pdevice->SetFVF(vertex_format_dmc3_3d);
         pdevice->SetIndices(g_dyn_ren_buf->p_ib);
+#else
+        pdevice->SetStreamSource(0, dd->p_vb, 0, sizeof(VertexDef));
+        pdevice->SetFVF(vertex_format_dmc3_3d);
+        pdevice->SetIndices(dd->p_ib);
+#endif
 
         auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, dd->vertex_buffer_ours.size(), 0, dd->primitive_count_ours);
         if (FAILED(hr)) {
@@ -2108,6 +2220,9 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
                     DXGetErrorString(hr), DXGetErrorDescription(hr));
         }
         dd->ref_count -= 1;
+        release_buffers(*dd);
+
+        delete dd;
 
 #if 0
         LPDIRECT3DINDEXBUFFER9 pIB  = NULL;
@@ -2173,6 +2288,9 @@ std::optional<std::string> RendererReplace::on_initialize() {
     init = true;
     g_rreplace = this;
 
+    g_vertex_data.reserve(256_MiB / sizeof(VertexDef));
+    g_index_data.reserve (256_MiB / sizeof(WORD));
+
     g_dyn_ren_buf = new DynamicRenderBuffer();
 
     //g_index_buffer_backing_area = malloc(INDEX_BUFFER_SIZE);
@@ -2212,7 +2330,6 @@ std::optional<std::string> RendererReplace::on_initialize() {
     }
 
     return Mod::on_initialize();
-
 
     m_d3d_dispatch_drawcall_006DF65D = std::make_unique<FunctionHook>(0x006DF65D, &d3d_dispatch_drawcall);
     if (!m_d3d_dispatch_drawcall_006DF65D->create()) {
@@ -2277,11 +2394,14 @@ std::optional<std::string> RendererReplace::on_initialize() {
 }
 
 void RendererReplace::on_draw_ui() {
+    ImGui::InputInt("skip draw", &g_skipdraw );
+#if 0
     ImGui::InputInt("base_vertex_index", &g_temp_dip_things.base_vertex_index);
     ImGui::InputInt("min_vertex_index", (int*) &g_temp_dip_things.min_vertex_index);
     ImGui::InputInt("num_vertices", (int*) &g_temp_dip_things.num_vertices);
     ImGui::InputInt("start_index", (int*) &g_temp_dip_things.start_index);
     ImGui::InputInt("prim_count", (int*) &g_temp_dip_things.prim_count);
+#endif
 }
 
 //TODO
