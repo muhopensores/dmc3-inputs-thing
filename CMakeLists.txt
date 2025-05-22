@@ -14,7 +14,7 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/DebugDraw)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/meshoptimizer/src)
 #temp
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/WickedEngine)
+#include_directories(${CMAKE_SOURCE_DIR}/dependencies/WickedEngine)
 
 include_directories($ENV{DXSDK_DIR}/Include)
 link_directories("$ENV{DXSDK_DIR}/Lib/x86")

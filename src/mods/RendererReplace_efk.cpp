@@ -6,8 +6,12 @@
 #include "utility/MemArena.hpp"
 #include <set>
 
+#include "Effekseer_DX9.h"
+
 #include <DxErr.h>
 #pragma comment(lib, "dxerr.lib")
+
+static EfkD3D9* g_efk{};
 
 // size literals
 constexpr std::size_t operator""_KiB(unsigned long long int x) {
@@ -1490,19 +1494,6 @@ class rModelWeightsData
 public:
     uint16_t bone_weights; //0x0000
 }; //Size: 0x0004
-
-class SomeStackThing
-{
-public:
-    class SomeRenderingData *p_some_rendering_data; //0x0000
-    Matrix4x4 *p_matrix; //0x0004
-    uint8_t some_uints0[4]; //0x0008
-    uint8_t some_uints1[4]; //0x000C
-    char pad_0010[4]; //0x0010
-    class N00001713 *p_c_light_mgr; //0x0014
-    char pad_0018[296]; //0x0018
-}; //Size: 0x0140
-
 #pragma endregion
 
 
@@ -2214,6 +2205,11 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
 
     static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
     static IDirect3DDevice9* pdevice = device_ptr->device;
+    static bool g_efk_init = false;
+    if (!g_efk_init) {
+        g_efk->Initialize(pdevice);
+        g_efk_init = true;
+    }
 
     uint8_t  type = (vertexCount >> 24) & 0xFF;
     uint32_t vert_count = vertexCount & 0x00FFFFFF;
@@ -2303,6 +2299,25 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         g_d3d_draw_primitive_sub_6E1C00_hook->get_original<decltype(d3d_draw_primitive_sub_6E1C00)>()(vertexCount, primitve_count, a3);
     }
 }
+static std::unique_ptr<FunctionHook> g_d3d_set_mat_and_draw_prim_6DF5F0_hook;
+static uintptr_t g_d3d_set_mat_hook_jmp_back = 0x006DF5F8;
+static void r_d3d_set_mat_and_draw_prim_our() {
+    g_efk->NewFrame();
+}
+// clang-format off
+static __declspec(naked) void r_d3d_set_mat_and_draw_prim_detour() {
+    __asm {
+        pushad
+        call r_d3d_set_mat_and_draw_prim_our
+        popad
+
+    originalCode:
+            mov ebx,[esp+08h]
+            cmp ebx, 1Bh
+        jmp dword ptr[g_d3d_set_mat_hook_jmp_back]
+    }
+}
+// clang-format on
 
 std::optional<std::string> RendererReplace::on_initialize() {
     // WARNING(): dirty hack to only init once here:
@@ -2318,6 +2333,11 @@ std::optional<std::string> RendererReplace::on_initialize() {
 
     g_dyn_ren_buf = new DynamicRenderBuffer();
 
+    g_efk = new EfkD3D9;
+    g_d3d_set_mat_and_draw_prim_6DF5F0_hook = std::make_unique<FunctionHook>(0x006DF5F1, &r_d3d_set_mat_and_draw_prim_detour);
+    if (!g_d3d_set_mat_and_draw_prim_6DF5F0_hook->create()) {
+        return "failed to hook g_d3d_set_mat_and_draw_prim_6DF5F0_hook";
+    }
     //g_index_buffer_backing_area = malloc(INDEX_BUFFER_SIZE);
     //utility::arena_init(&g_index_buffer, g_index_buffer_backing_area, INDEX_BUFFER_SIZE);
 

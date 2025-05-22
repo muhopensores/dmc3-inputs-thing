@@ -122,6 +122,8 @@ set(FRAMEWORK_SRC
     ModFramework.cpp
     Config.hpp
     Profiler.hpp
+#    Effekseer_DX9.h
+#    Effekseer_DX9.cpp
 )
 
 source_group("imgui", FILES ${IMGUI_SRC})

@@ -23,6 +23,10 @@
 #include "utility/ExceptionHandler.hpp"
 #include "utility/Thread.hpp"
 
+#include "Effekseer_DX9.h"
+
+static EfkD3D9* g_efk{};
+
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 std::unique_ptr<ModFramework> g_framework{};
@@ -117,7 +121,7 @@ static bool is_cursor_visible_winapi() {
 }
 
 void ModFramework::on_frame() {
-    spdlog::debug("on_frame");
+    //spdlog::debug("on_frame");
 
     if (!m_initialized) {
         if (!initialize()) {
@@ -419,6 +423,7 @@ bool ModFramework::initialize() {
     m_prompt_font = io.Fonts->AddFontFromMemoryCompressedTTF(PFont_compressed_data, PFont_compressed_size, 32.0f, NULL, icons_ranges);
 
     ImGui::StyleColorsDark();
+
 
     if (m_first_frame) {
         m_first_frame = false;
