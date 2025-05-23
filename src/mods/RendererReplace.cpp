@@ -1416,8 +1416,8 @@ public:
     uint32_t offset_0x2C; //0x002C
     uint8_t offset_0x30; //0x0030
     char pad_0031[3]; //0x0031
-    struct DIPData* index_buffer; //0x0034
-    uint32_t startin_vertex; //0x0038
+    uint32_t bone_count; //0x0034
+    Matrix4x4* world; //0x0038
     char pad_003C[4]; //0x003C
     class SomeRenderDataIdkAnonStruct N00001A0B; //0x0040
     class SomeRenderDataIdkAnonStruct N00001A0C; //0x0090
@@ -1433,7 +1433,8 @@ public:
     Vector3 *normals_ptr1; //0x0104
     class rModelUVData *uvdata_ptr; //0x0108
     class rModelUVData *uvdata_ptr1; //0x010C
-    char pad_0110[8]; //0x0110
+    class rModelBoneIndices *boindata_ptr0; //0x0110
+    class rModelBoneIndices *boindata_ptr1; //0x0114
     class rModelWeightsData *weightdata_ptr0; //0x0118
     class rModelWeightsData *weightdata_ptr1; //0x011C
     class rModelSCMData *scmdata_ptr; //0x0120
@@ -1503,6 +1504,11 @@ public:
     char pad_0018[296]; //0x0018
 }; //Size: 0x0140
 
+class rModelBoneIndices
+{
+public:
+    uint8_t bn_ind[4]; //0x0000
+}; //Size: 0x0004
 #pragma endregion
 
 
@@ -1650,12 +1656,16 @@ enum EVertexBufferType{
 
 // TODO(): find where to stick this
 static constexpr DWORD vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
+static constexpr DWORD vertex_format_dmc3_3d_ffp_skinning = D3DFVF_XYZB4 | D3DFVF_LASTBETA_UBYTE4  | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1;
 
 struct DIPData {
     std::uint32_t vertex_count_ours;
     std::uint32_t primitive_count_ours;
     std::uint32_t index_count_ours;
     std::uint32_t base_index;
+    Matrix4x4*    matrices {};
+    Matrix4x4*    world {};
+    std::uint16_t bone_count;
     //std::vector<std::uint16_t> index_buffer_ours;
     //std::vector<VertexDef> vertex_buffer_ours;
 
@@ -1858,13 +1868,43 @@ struct DynamicRenderBuffer {
     size_t m_ib_capacity {0};
 };
 
+struct MatrixIndices {
+    union {
+        BYTE index[4];
+        DWORD indices;
+    };
+};
+
+struct VertexDefDynamic {
+    Vector3 pos;
+    Vector3 weight;
+    MatrixIndices mat_indices;
+    Vector3 normal;
+
+    uint8_t diff_r; //0x0018
+    uint8_t diff_g; //0x0019
+    uint8_t diff_b; //0x001A
+    uint8_t diff_a; //0x001B
+    uint8_t spec_r; //0x001C
+    uint8_t spec_g; //0x001D
+    uint8_t spec_b; //0x001E
+    uint8_t spec_a; //0x001F
+
+    Vector2 uv0; //0x0020
+};
+static_assert(sizeof(VertexDefDynamic) == sizeof(VertexDef));
+
 static DynamicRenderBuffer* g_dyn_ren_buf {nullptr};
 
 static std::map<size_t, IndexData> g_ib_map;
 static int g_current_obj {0};
 static int g_skipdraw {-1};
-std::vector<VertexDef> g_vertex_data;
-std::vector<WORD> g_index_data;
+
+std::vector<VertexDef> g_vertex_data_world;
+std::vector<WORD> g_index_data_world;
+
+std::vector<VertexDef> g_vertex_data_dynamics;
+std::vector<WORD> g_index_data_dynamics;
 
 static VertexDef* g_current_vertex_data_pointer = 0x0;
 static uintptr_t r_malloc_vertex_datas_jmp = 0x006E15AC;
@@ -1915,14 +1955,14 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
 
 
     DIPData* render_info = new DIPData;
-    size_t vertex_offset = g_vertex_data.size();
+    size_t vertex_offset = g_vertex_data_world.size();
 
     assert(vertex_offset < USHRT_MAX);
 
     for (size_t resb = 0; resb < rdss->srd->vert_count; resb = (resb + 1)) {
         typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
         static cDrawVertexDataSetSub6DE480 cDraw_vertex_data_set_sub_6DE480 = (cDrawVertexDataSetSub6DE480)0x6DE480;
-        g_current_vertex_data_pointer = &g_vertex_data.emplace_back();
+        g_current_vertex_data_pointer = &g_vertex_data_world.emplace_back();
         cDraw_vertex_data_set_sub_6DE480(resb, rdss);
         g_current_vertex_data_pointer = 0;
         //memcpy(&render_info->vertex_buffer_ours[resb], g_current_vertex_data_pointer, 0x38);
@@ -1943,11 +1983,11 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
 
     render_info->index_count_ours     = result->index_count;
     render_info->primitive_count_ours = result->prim_count;
-    render_info->base_index           = g_index_data.size();
+    render_info->base_index           = g_index_data_world.size();
 
     //render_info->index_buffer_ours    = std::move(result.ib);
     for (WORD index : result->ib) {
-        g_index_data.push_back(index + vertex_offset);
+        g_index_data_world.push_back(index + vertex_offset);
     }
     render_info->vertex_count_ours    = rdss->srd->vert_count;
     result->ref_count -= 1;
@@ -1995,7 +2035,7 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
 
 }
 
-static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStruct* rdss, SomeRenderingData** srd) {
+static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStruct* rdss, SomeStackThing* stack) {
     assert(srd0);
     assert(srd0->vert_count);
 
@@ -2004,7 +2044,7 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
     }
     const uint32_t vert_count = srd0->vert_count;
 
-    typedef int (__cdecl *cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct *a1, int vert_index, SomeRenderingData** a3);
+    typedef int (__cdecl *cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct *a1, int vert_index, SomeStackThing* a3);
     cDrawcDrawSubPrepVertsGuiAndCharacters prep_verts_gui_and_characters = (cDrawcDrawSubPrepVertsGuiAndCharacters)0x006DD4A0;
 
     typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
@@ -2017,7 +2057,7 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
     if (*g_render_ui_flag_byte_252F48C) {
 
         for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
-            if (prep_verts_gui_and_characters(rdss, vert, srd)) {
+            if (prep_verts_gui_and_characters(rdss, vert, stack)) {
                 r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
                 start_offset    = 0;
                 tri_strip_count = 0;
@@ -2034,17 +2074,46 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
         return;
     }
 
-    uint8_t value    = EVertexBufferType::WORLD;
+    uint8_t value    = EVertexBufferType::ARTICULATED_MODELS;
     DIPData* render_info;
         render_info = new DIPData;
-        size_t vertex_offset = g_vertex_data.size();
+        size_t vertex_offset = g_vertex_data_world.size();
         assert(vertex_offset < USHRT_MAX);
         //render_info->vertex_buffer_ours.reserve(vert_count);
 
         for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
             //g_current_vertex_data_pointer = &render_info->vertex_buffer_ours.emplace_back();
-            g_current_vertex_data_pointer = &g_vertex_data.emplace_back();
-            prep_verts_gui_and_characters(rdss, vert, srd);
+            g_current_vertex_data_pointer = &g_vertex_data_world.emplace_back();
+            prep_verts_gui_and_characters(rdss, vert, stack);
+            VertexDefDynamic dvtx;
+            dvtx.pos  = srd0->verts_ptr0[vert];
+            dvtx.normal = srd0->normals_ptr[vert];
+
+            dvtx.mat_indices.index[0] = srd0->boindata_ptr0[vert].bn_ind[0] >> 2;
+            dvtx.mat_indices.index[1] = srd0->boindata_ptr0[vert].bn_ind[1] >> 2;
+            dvtx.mat_indices.index[2] = srd0->boindata_ptr0[vert].bn_ind[2] >> 2;
+            dvtx.mat_indices.index[3] = srd0->boindata_ptr0[vert].bn_ind[3] >> 2;
+
+            WORD weight_packed = srd0->weightdata_ptr0[vert].bone_weights;
+            dvtx.weight.x = (float)(weight_packed & 0x1F) / 31.0f;
+            dvtx.weight.y = (float)((weight_packed >> 5) & 0x1F)  / 31.0f;
+            dvtx.weight.z = (float)((weight_packed >> 10) & 0x1F) / 31.0f;
+
+            dvtx.diff_r = g_current_vertex_data_pointer->diff_r;
+            dvtx.diff_g = g_current_vertex_data_pointer->diff_g;
+            dvtx.diff_b = g_current_vertex_data_pointer->diff_b;
+            dvtx.diff_a = g_current_vertex_data_pointer->diff_a;
+
+            dvtx.spec_r = g_current_vertex_data_pointer->spec_r;
+            dvtx.spec_g = g_current_vertex_data_pointer->spec_g;
+            dvtx.spec_b = g_current_vertex_data_pointer->spec_b;
+            dvtx.spec_a = g_current_vertex_data_pointer->spec_a;
+
+            dvtx.uv0 = g_current_vertex_data_pointer->uv0;
+
+            memcpy(g_current_vertex_data_pointer, &dvtx, sizeof(VertexDefDynamic));
+
+            //g_current_vertex_data_pointer->norm = srd0->normals_ptr[vert];
             g_current_vertex_data_pointer = 0;
             //memcpy(&render_info->vertex_buffer_ours[vert], g_current_vertex_data_pointer, 0x38);
         }
@@ -2062,12 +2131,15 @@ static void r_render_chars_intercept(SomeRenderingData* srd0, RDrawSomethingStru
         }
         assert(result);
 
+        render_info->bone_count = srd0->bone_count;
+        render_info->world = srd0->world;
+        render_info->matrices = stack->p_matrix;
         render_info->index_count_ours     = result->index_count;
         render_info->primitive_count_ours = result->prim_count;
-        render_info->base_index = g_index_data.size();
+        render_info->base_index = g_index_data_world.size();
         //render_info->index_buffer_ours    = std::move(result.ib);
         for (WORD index : result->ib) {
-            g_index_data.push_back(index + vertex_offset);
+            g_index_data_world.push_back(index + vertex_offset);
         }
         render_info->vertex_count_ours    = srd0->vert_count;
         result->ref_count -= 1;
@@ -2143,8 +2215,12 @@ static void r_reset_rendering_globals() {
     g_index_buffer.prev_offset = 0;
     g_current_obj = 0;
 
-    g_vertex_data.clear();
-    g_index_data.clear();
+    g_vertex_data_world.clear();
+    g_index_data_world.clear();
+
+    g_vertex_data_dynamics.clear();
+    g_index_data_dynamics.clear();
+
     g_dyn_ren_buf->reset();
 
     for (auto it = g_ib_map.begin(); it != g_ib_map.end();) {
@@ -2218,28 +2294,60 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
     uint8_t  type = (vertexCount >> 24) & 0xFF;
     uint32_t vert_count = vertexCount & 0x00FFFFFF;
     if (type == EVertexBufferType::WORLD) {
-#if 0
-        typedef int (__cdecl *D3DCreateVB)(int a1);
-        static D3DCreateVB create_vb_fptr = (D3DCreateVB)0x006E18F0;
-        create_vb_fptr(vertexCount);
-#endif
 
         DIPData* dd = (DIPData*)primitve_count;
 
         // upload data to vb & ib
         g_dyn_ren_buf->re_create_buffers(pdevice);
-        g_dyn_ren_buf->upload(g_vertex_data, g_index_data);
+        g_dyn_ren_buf->upload(g_vertex_data_world, g_index_data_world);
 
         // draw
-#if 1
         pdevice->SetStreamSource(0, g_dyn_ren_buf->p_vb, 0, sizeof(VertexDef));
         pdevice->SetFVF(vertex_format_dmc3_3d);
         pdevice->SetIndices(g_dyn_ren_buf->p_ib);
-#else
-        pdevice->SetStreamSource(0, dd->p_vb, 0, sizeof(VertexDef));
-        pdevice->SetFVF(vertex_format_dmc3_3d);
-        pdevice->SetIndices(dd->p_ib);
-#endif
+
+        auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
+        if (FAILED(hr)) {
+            fprintf(stderr, "Error: %s error description: %s\n",
+                    DXGetErrorString(hr), DXGetErrorDescription(hr));
+        }
+
+        delete dd;
+    }
+    else if (type == EVertexBufferType::ARTICULATED_MODELS) {
+
+        DIPData* dd = (DIPData*)primitve_count;
+        Matrix4x4 world;
+        if (dd->world) {
+            world = *dd->world;
+            //world = glm::transpose(world);
+            pdevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&world);
+        }
+
+        // upload data to vb & ib
+        g_dyn_ren_buf->re_create_buffers(pdevice);
+        g_dyn_ren_buf->upload(g_vertex_data_world, g_index_data_world);
+
+        Matrix4x4* ass = dd->matrices;
+
+        Matrix4x4 bone_matrices[99];
+        uint16_t bones = dd->bone_count;
+
+        printf("bones=%d\n", bones);
+
+        for (uint16_t i = 0; i < bones; ++i) {
+            bone_matrices[i] = (ass[i]);
+            //D3DXMatrixTranspose(&bone_matrices[i], (CONST D3DXMATRIX*)&ass[i]);
+            pdevice->SetTransform(D3DTS_WORLDMATRIX(i), (CONST D3DMATRIX*) & bone_matrices[i]);
+        }
+
+        pdevice->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_3WEIGHTS);
+        pdevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, TRUE);
+
+        // draw
+        pdevice->SetStreamSource(0, g_dyn_ren_buf->p_vb, 0, sizeof(VertexDef));
+        pdevice->SetFVF(vertex_format_dmc3_3d_ffp_skinning);
+        pdevice->SetIndices(g_dyn_ren_buf->p_ib);
 
         auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, dd->base_index, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
         if (FAILED(hr)) {
@@ -2247,62 +2355,44 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
                     DXGetErrorString(hr), DXGetErrorDescription(hr));
         }
 
+        pdevice->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);
+        pdevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, FALSE);
+
+        early_out:
         delete dd;
-
-#if 0
-        LPDIRECT3DINDEXBUFFER9 pIB  = NULL;
-        LPDIRECT3DVERTEXBUFFER9 pVB = NULL;
-
-        DIPData* dd = (DIPData*)primitve_count;
-
-        // create and lock vb
-        UINT vbsize = dd->vertex_buffer_ours.size() * 0x38;
-        constexpr auto vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
-        if (FAILED(pdevice->CreateVertexBuffer( vbsize,
-            0, vertex_format_dmc3_3d, D3DPOOL_DEFAULT, &pVB, NULL))) {
-            return;
-        }
-        void* pvertices;
-        if (FAILED(pVB->Lock(0, vbsize, (void**)&pvertices, 0))) {
-            return;
-        }
-        memcpy(pvertices, dd->vertex_buffer_ours.data(), vbsize);
-        pVB->Unlock();
-
-        // create and lock ib
-        UINT ibsize = dd->index_buffer_ours.size() * sizeof(std::uint16_t);
-        if (FAILED(pdevice->CreateIndexBuffer(ibsize,
-            0, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &pIB, NULL))) {
-            return;
-        }
-
-        void* pindices;
-        if (FAILED(pIB->Lock(0, ibsize, (void**)&pindices, 0))) {
-            return ;
-        }
-        memcpy(pindices, dd->index_buffer_ours.data(), ibsize);
-        pIB->Unlock();
-
-        // draw
-        pdevice->SetStreamSource(0, pVB, 0, sizeof(VertexDef));
-        pdevice->SetFVF(vertex_format_dmc3_3d);
-        pdevice->SetIndices(pIB);
-
-        auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, dd->vertex_buffer_ours.size(), 0, dd->primitive_count_ours);
-        if (FAILED(hr)) {
-            fprintf(stderr, "Error: %s error description: %s\n",
-                    DXGetErrorString(hr), DXGetErrorDescription(hr));
-        }
-
-        pVB->Release();
-        pIB->Release();
-        dd->ref_count += 1;
-#endif
     }
     else {
         g_d3d_draw_primitive_sub_6E1C00_hook->get_original<decltype(d3d_draw_primitive_sub_6E1C00)>()(vertexCount, primitve_count, a3);
     }
 }
+
+static std::unique_ptr<FunctionHook> g_bone_count_write_hook;
+static void cDraw_write_bone_count(cDrawSub* cds) {
+    uint16_t bone_count = cds->bone_count;
+    if (cds->modnrender_data_ptr) {
+        if(cds->modnrender_data_ptr->ptr_has_some_rendering_data) {
+            cds->modnrender_data_ptr->ptr_has_some_rendering_data->bone_count = bone_count;
+            cds->modnrender_data_ptr->ptr_has_some_rendering_data->world = &cds->obj_transforms_matrices_ptr->unk;
+        }
+    }
+}
+
+// clang-format off
+static uintptr_t cDraw_write_bone_jmp_back {0x00692CAE};
+static __declspec(naked) void cDraw_write_bone_count_detour() {
+    __asm {
+        pushad
+        push esi
+        call cDraw_write_bone_count
+        pop esi
+        popad
+
+    originalCode:
+        mov [esi + 0B8h], cx
+        jmp dword ptr[cDraw_write_bone_jmp_back]
+    }
+}
+// clang-format on
 
 std::optional<std::string> RendererReplace::on_initialize() {
     // WARNING(): dirty hack to only init once here:
@@ -2313,8 +2403,11 @@ std::optional<std::string> RendererReplace::on_initialize() {
     init = true;
     g_rreplace = this;
 
-    g_vertex_data.reserve(256_MiB / sizeof(VertexDef));
-    g_index_data.reserve (256_MiB / sizeof(WORD));
+    g_vertex_data_world.reserve(128_MiB / sizeof(VertexDef));
+    g_index_data_world.reserve (128_MiB / sizeof(WORD));
+
+    g_vertex_data_dynamics.reserve(128_MiB / sizeof(VertexDef));
+    g_index_data_dynamics.reserve(128_MiB / sizeof(WORD));
 
     g_dyn_ren_buf = new DynamicRenderBuffer();
 
@@ -2327,6 +2420,11 @@ std::optional<std::string> RendererReplace::on_initialize() {
         return "failed to hook prep mesh datas";
     }
 #endif
+
+    g_bone_count_write_hook = std::make_unique<FunctionHook>(0x00692CA7, &cDraw_write_bone_count_detour);
+    if (!g_bone_count_write_hook->create()) {
+        return "failed to hook get bone count";
+    }
 
     m_r_render_prep_world_hook = std::make_unique<FunctionHook>(0x006DE3BC, &r_render_world_detour);
     if (!m_r_render_prep_world_hook->create()) {
