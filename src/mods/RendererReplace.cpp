@@ -1,9 +1,11 @@
 #include "RendererReplace.hpp"
-//#include "WickedEngine.h"
+// #include "WickedEngine.h"
 #include "D3dx9math.h"
 #include "meshoptimizer.h"
 #include "numeric"
 #include "utility/MemArena.hpp"
+#include <array>
+#include <cstring>
 #include <set>
 
 #include <DxErr.h>
@@ -22,346 +24,47 @@ constexpr std::size_t operator""_GiB(unsigned long long int x) {
     return 1024_MiB * x;
 }
 
-static RendererReplace* g_rreplace {nullptr};
-#if 0
-static wi::Application application;
-static wi::graphics::CommandList g_cmdlist;
-static wi::graphics::ColorSpace g_colorspace;
-static wi::graphics::GraphicsDevice::GPUAllocation alloc;
-static wi::graphics::Shader debug_vs;
-static wi::graphics::Shader debug_ps;
-static wi::graphics::InputLayout debug_input_layout;
-static wi::graphics::PipelineState debug_pso;
-#endif
-static bool g_3d_draw_cmd {false};
-// clang-format off
-// only in clang/icl mode on x64, sorry
-/*
-static naked void detour() {
-	__asm {
-		mov qword ptr [RendererReplace::variable], rbx
-		mov rax, 0xDEADBEEF
-		jmp qword ptr [jmp_ret]
-	}
-}
-*/
-// clang-format on
+static RendererReplace* g_rreplace{nullptr};
 
-#if 0
-// create device objects
-bool create_device_objects() {
-    //constexpr auto vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
-    struct DMC3_VERTEX_VFV_LAYOUT {
-        float pos[3];
-        float norm[3];
-        DWORD diffuse;
-        DWORD specular;
-        float uv0[2];
-        float uv1[2];
-        float uv2[2];
-    };
-    static constexpr auto bruh = sizeof(DMC3_VERTEX_VFV_LAYOUT);
-    debug_input_layout.elements = 
-    {
-        { "POSITION",   0, wi::graphics::Format::R32G32B32_FLOAT, 0, offsetof(DMC3_VERTEX_VFV_LAYOUT, pos),      wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "NORMAL",     0, wi::graphics::Format::R32G32B32_FLOAT, 0, offsetof(DMC3_VERTEX_VFV_LAYOUT, norm),     wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "DIFF_COLOR", 0, wi::graphics::Format::R8G8B8A8_UINT,   0, offsetof(DMC3_VERTEX_VFV_LAYOUT, diffuse),  wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "SPEC_COLOR", 0, wi::graphics::Format::R8G8B8A8_UINT,   0, offsetof(DMC3_VERTEX_VFV_LAYOUT, specular), wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "TEXCOORD",   0, wi::graphics::Format::R32G32_FLOAT,    0, offsetof(DMC3_VERTEX_VFV_LAYOUT, uv0),      wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "TEXCOORD",   1, wi::graphics::Format::R32G32_FLOAT,    0, offsetof(DMC3_VERTEX_VFV_LAYOUT, uv1),      wi::graphics::InputClassification::PER_VERTEX_DATA},
-        { "TEXCOORD",   2, wi::graphics::Format::R32G32_FLOAT,    0, offsetof(DMC3_VERTEX_VFV_LAYOUT, uv2),      wi::graphics::InputClassification::PER_VERTEX_DATA},
-    };
+static bool g_3d_draw_cmd{false};
 
-    wi::graphics::PipelineStateDesc desc;
-    desc.vs = &debug_vs;
-    desc.ps = &debug_ps;
-    desc.il = &debug_input_layout;
-    desc.dss = wi::renderer::GetDepthStencilState(wi::enums::DSSTYPE_DEPTHDISABLED);
-    desc.rs = wi::renderer::GetRasterizerState(wi::enums::RSTYPE_FRONT);
-    desc.bs = wi::renderer::GetBlendState(wi::enums::BSTYPE_OPAQUE);
-    desc.pt = wi::graphics::PrimitiveTopology::TRIANGLESTRIP;
-    
-
-    return wi::graphics::GetDevice()->CreatePipelineState(&desc, &debug_pso);
-}
-
-
-// d3d draw primitive
-
-static HRESULT __cdecl wi_draw_primitive(IDirect3DDevice9* This, UINT StartVertex, UINT PrimitiveCount) {
-    if(!g_3d_draw_cmd) {
-        return D3D_OK;
-    }
-    auto device = wi::graphics::GetDevice();
-
-    /*wi::graphics::Viewport viewport;
-    viewport.width = application.canvas.width;
-    viewport.height = application.canvas.height;
-    application.graphicsDevice->BindViewports(1, &viewport, g_cmdlist);*/
-
-    application.graphicsDevice->BindPipelineState(&debug_pso, g_cmdlist);
-    UINT primcount_adj = PrimitiveCount;
-    device->Draw(primcount_adj, StartVertex, g_cmdlist);
-    return D3D_OK;
-}
-
-static uintptr_t d3d_draw_primitive_jmp_back = 0x006E1C62;
-static __declspec(naked) void d3d_draw_primitive() {
-    __asm {
-        call wi_draw_primitive
-        jmp dword ptr[d3d_draw_primitive_jmp_back]
-    }
-}
-
-#define BYTEn(x, n)   (*((BYTE*)&(x)+n))
-// set world transform
-static HRESULT WINAPI wi_set_transform_world(IDirect3DDevice9* d3d9d, D3DTRANSFORMSTATETYPE type, const D3DXMATRIX* p_matrix) {
-    auto byte0 = !LOBYTE(p_matrix[3]._11);
-    auto byte1 = BYTEn(p_matrix[3]._11, 1);
-    auto byte2 = BYTEn(p_matrix[3]._11, 2);
-
-    XMMATRIX modelMatrix;
-    if(byte0) { modelMatrix = XMMATRIX((const float*)p_matrix); }
-    else { modelMatrix = XMMatrixIdentity(); }
-
-    XMMATRIX viewMatrix;
-    if(byte1) { viewMatrix = XMMATRIX((const float*)(p_matrix + 1)); }
-    else { viewMatrix = XMMatrixIdentity(); }
-
-    XMMATRIX projectionMatrix;
-    if(byte2){
-        projectionMatrix = XMMATRIX((const float*)(p_matrix+2));}
-    else {
-        projectionMatrix = XMMatrixIdentity();
-    }
-
-
-    XMMATRIX mvp_matrix =  modelMatrix * viewMatrix * projectionMatrix;
-    XMMATRIX tmvp_matrix = XMMatrixTranspose(mvp_matrix);
-    /*D3DXMatrixMultiply(&mat_total, (p_matrix + 2), (p_matrix + 1));
-    D3DXMatrixMultiply(&mat_total, &mat_total, p_matrix);*/
-
-    auto device = wi::graphics::GetDevice();
-    device->BindDynamicConstantBuffer(tmvp_matrix, 0, g_cmdlist);
-
-    return D3D_OK;
-}
-
-static uintptr_t d3d_set_transform_world_jmp_back = 0x006DBCB6;
-static __declspec(naked) void d3d_set_transform_world() {
-    __asm {
-        call wi_set_transform_world
-        jmp dword ptr[d3d_set_transform_world_jmp_back]
-    }
-}
-
-// unlock buffs
-static HRESULT wi_unlock_buffer(d3d_vbuffer* vb) {
-    auto result = vb->size;
-    if (result) {
-    const wi::graphics::GPUBuffer* vbs[] = {
-        &alloc.buffer,
-    };
-    const uint32_t strides[] = {
-        0x38,
-    };
-    const uint64_t offsets[] = {
-        alloc.offset,
-    };
-    auto dev = wi::graphics::GetDevice();
-    dev->BindVertexBuffers(vbs, 0 ,1, strides, offsets, g_cmdlist);
-    auto size = vb->size;
-    vb->size = 0;
-    vb->unk = size;
-    }
-    g_3d_draw_cmd = true;
-    return result;
-}
-
-static uintptr_t d3d_unlock_buffs_jmp_back = 0x006E1B5E;
-static __declspec(naked) void d3d_unlock_buffs() {
-    __asm {
-        push ecx
-        call wi_unlock_buffer
-        pop ecx
-        jmp dword ptr[d3d_unlock_buffs_jmp_back]
-    }
-}
-
-// end scene
-static HRESULT wi_end_scene() {
-    application.Compose(g_cmdlist);
-    application.graphicsDevice->RenderPassEnd(g_cmdlist);
-    bool colorspace_conversion_required = g_colorspace == wi::graphics::ColorSpace::HDR10_ST2084;
-    if (colorspace_conversion_required)
-    {
-        // In HDR10, we perform a final mapping from linear to HDR10, into the swapchain
-        application.graphicsDevice->RenderPassBegin(&application.swapChain, g_cmdlist);
-        wi::image::Params fx;
-        fx.enableFullScreen();
-        fx.enableHDR10OutputMapping();
-        wi::image::Draw(&application.rendertarget, fx, g_cmdlist);
-        application.graphicsDevice->RenderPassEnd(g_cmdlist);
-    }
-    wi::profiler::EndFrame(g_cmdlist);
-    application.graphicsDevice->SubmitCommandLists();
-    g_3d_draw_cmd = false;
-    return D3D_OK;
-}
-static uintptr_t d3d_end_scene_jmp_back = 0x006DC489;
-static __declspec(naked) void d3d_end_scene() {
-    __asm {
-        call wi_end_scene
-        add esp, 4
-        jmp dword ptr[d3d_end_scene_jmp_back]
-    }
-}
-// begin scene
-static HRESULT wi_begin_scene() {
-    wi::font::UpdateAtlas(application.canvas.GetDPIScaling());
-
-    g_colorspace = application.graphicsDevice->GetSwapChainColorSpace(&application.swapChain);
-    if (!wi::initializer::IsInitializeFinished())
-    {
-        // Until engine is not loaded, present initialization screen...
-        wi::graphics::CommandList cmd = application.graphicsDevice->BeginCommandList();
-        application.graphicsDevice->RenderPassBegin(&application.swapChain, cmd);
-        wi::graphics::Viewport viewport;
-        viewport.width = (float)application.swapChain.desc.width;
-        viewport.height = (float)application.swapChain.desc.height;
-        application.graphicsDevice->BindViewports(1, &viewport, cmd);
-        if (wi::initializer::IsInitializeFinished(wi::initializer::INITIALIZED_SYSTEM_FONT))
-        {
-            wi::backlog::DrawOutputText(application.canvas, cmd, g_colorspace);
-        }
-        application.graphicsDevice->RenderPassEnd(cmd);
-        application.graphicsDevice->SubmitCommandLists();
-        return D3D_OK;
-    }
-    wi::profiler::BeginFrame();
-    application.deltaTime = float(std::max(0.0, application.timer.record_elapsed_seconds()));
-    // Wake up the events that need to be executed on the main thread, in thread safe manner:
-    wi::eventhandler::FireEvent(wi::eventhandler::EVENT_THREAD_SAFE_POINT, 0);
-    application.Render(); 
-    g_cmdlist = application.graphicsDevice->BeginCommandList();
-
-    // Begin final compositing:
-    wi::image::SetCanvas(application.canvas);
-    wi::font::SetCanvas(application.canvas);
-    wi::graphics::Viewport viewport;
-    viewport.width = (float)application.swapChain.desc.width;
-    viewport.height = (float)application.swapChain.desc.height;
-    application.graphicsDevice->BindViewports(1, &viewport, g_cmdlist);
-
-    bool colorspace_conversion_required = g_colorspace == wi::graphics::ColorSpace::HDR10_ST2084;
-    if (colorspace_conversion_required)
-    {
-        // In HDR10, we perform the compositing in a custom linear color space render target
-        if (!application.rendertarget.IsValid())
-        {
-            wi::graphics::TextureDesc desc;
-            desc.width = application.swapChain.desc.width;
-            desc.height = application.swapChain.desc.height;
-            desc.format = wi::graphics::Format::R11G11B10_FLOAT;
-            desc.bind_flags = wi::graphics::BindFlag::RENDER_TARGET | wi::graphics::BindFlag::SHADER_RESOURCE;
-            bool success = application.graphicsDevice->CreateTexture(&desc, nullptr, &application.rendertarget);
-            assert(success);
-            application.graphicsDevice->SetName(&application.rendertarget, "Application::rendertarget");
-        }
-        wi::graphics::RenderPassImage rp[] = {
-            wi::graphics::RenderPassImage::RenderTarget(&application.rendertarget,  wi::graphics::RenderPassImage::LoadOp::CLEAR),
-        };
-        application.graphicsDevice->RenderPassBegin(rp, arraysize(rp), g_cmdlist);
-    }
-    else
-    {
-        // If swapchain is SRGB or Linear HDR, it can be used for blending
-        //	- If it is SRGB, the render path will ensure tonemapping to SDR
-        //	- If it is Linear HDR, we can blend trivially in linear space
-        application.rendertarget = {};
-        application.graphicsDevice->RenderPassBegin(&application.swapChain, g_cmdlist);
-    }
-
-    return D3D_OK;
-}
-
-static uintptr_t d3d_begin_scene_jmp_back = 0x006DC3D3;
-static DWORD rets = 0;
-static __declspec(naked) void d3d_begin_scene() {
-    
-    __asm {
-        call wi_begin_scene
-        add esp, 4
-        jmp dword ptr [d3d_begin_scene_jmp_back]
-    }
-}
-
-// vb update
-static void* WINAPI wi_alloc_gpu(d3d_vbuffer* vb, DWORD size) {
-    wi::graphics::GraphicsDevice* dev = wi::graphics::GetDevice();
-
-    alloc = dev->AllocateGPU(size, g_cmdlist);
-    
-    vb->size = size;
-    vb->length = size;
-    vb->unk = 0;
-    return alloc.data;
-}
-
-static uintptr_t d3d_create_vb_and_lock_jmp_back = 0x006E1AE4;
-// clang-format off
-static __declspec(naked) void d3d_create_vb_and_lock() {
-    __asm {
-        push ecx
-        call wi_alloc_gpu
-        jmp dword ptr [d3d_create_vb_and_lock_jmp_back]
-    }
-}
-// clang-format on
-#endif
-// Created with ReClass.NET 1.2 by KN4CK3R
-
-class DrawCommandMaybe
-{
+class DrawCommandMaybe {
 public:
-    class DrawCommandMaybe* m_ptr_next_draw_cmd; //0x0000
-    class MeshDrawDataMaybe* m_ptr_mesh_draw_data; //0x0004
-    uint32_t unk; //0x0008
-    class SomeOtherTextureData* m_ptr_other_texture_stuff; //0x000C
-    class ZAndScrBlend* m_ptr_z_and_blendstate; //0x0010
-    class MvpMatrix* m_ptr_mvp_matrix; //0x0014
-    void* m_unk_ptr; //0x0018
-    class TextureData* m_ptr_texture_data; //0x001C
-    uint32_t unk_uint32; //0x0020
-    uint32_t unk_uint32_0; //0x0024
-    char pad_0028[32]; //0x0028
-}; //Size: 0x0048
+    class DrawCommandMaybe* m_ptr_next_draw_cmd;           // 0x0000
+    class MeshDrawDataMaybe* m_ptr_mesh_draw_data;         // 0x0004
+    uint32_t unk;                                          // 0x0008
+    class SomeOtherTextureData* m_ptr_other_texture_stuff; // 0x000C
+    class ZAndScrBlend* m_ptr_z_and_blendstate;            // 0x0010
+    class MvpMatrix* m_ptr_mvp_matrix;                     // 0x0014
+    void* m_unk_ptr;                                       // 0x0018
+    class TextureData* m_ptr_texture_data;                 // 0x001C
+    uint32_t unk_uint32;                                   // 0x0020
+    uint32_t unk_uint32_0;                                 // 0x0024
+    char pad_0028[32];                                     // 0x0028
+}; // Size: 0x0048
 
-class MeshDrawDataMaybe
-{
+class MeshDrawDataMaybe {
 public:
-    class MeshDrawDataMaybe* m_next_mesh_draw_data; //0x0000
-    uint32_t start_vertex; //0x0004
-    uint32_t prim_count; //0x0008
-}; //Size: 0x000C
+    class MeshDrawDataMaybe* m_next_mesh_draw_data; // 0x0000
+    uint32_t start_vertex;                          // 0x0004
+    uint32_t prim_count;                            // 0x0008
+}; // Size: 0x000C
 
-class MvpMatrix
-{
+class MvpMatrix {
 public:
-    Matrix4x4 model; //0x0000
-    Matrix4x4 view; //0x0040
-    Matrix4x4 proj; //0x0080
-}; //Size: 0x00C0
+    Matrix4x4 model; // 0x0000
+    Matrix4x4 view;  // 0x0040
+    Matrix4x4 proj;  // 0x0080
+}; // Size: 0x00C0
 
-class ZAndScrBlend
-{
+class ZAndScrBlend {
 public:
-    bool unk_bool_0; //0x0000
-    bool unk_bool_1; //0x0001
-    bool unk_bool_2; //0x0002
-    bool unk_bool_3; //0x0003
-    char pad_0004[64]; //0x0004
-}; //Size: 0x0044
+    bool unk_bool_0;   // 0x0000
+    bool unk_bool_1;   // 0x0001
+    bool unk_bool_2;   // 0x0002
+    bool unk_bool_3;   // 0x0003
+    char pad_0004[64]; // 0x0004
+}; // Size: 0x0044
 
 #if 0
 class TextureData
@@ -371,97 +74,21 @@ public:
 }; //Size: 0x0004
 #endif
 
-class SomeOtherTextureData
-{
+class SomeOtherTextureData {
 public:
-    char pad_0000[4]; //0x0000
-}; //Size: 0x0004
+    char pad_0000[4]; // 0x0000
+}; // Size: 0x0004
 static DWORD g_vertices{0};
 struct D3DDevicePtr {
     IDirect3DDevice9* device;
 };
 
-#if 0 
-DWORD d3d_create_vb_lock_and_unlock() {
-
-  DWORD ptr_numverts = *(DWORD*)0x0252FFA4;
-  DWORD size = 0x38 * ptr_numverts;                   // world
-  DWORD someptr = *(DWORD*)0x0252FFAC;
-  static constexpr uintptr_t d3d_vbuffer_struct_static = 0x0252FFA8;
-  static constexpr uintptr_t d3d_vbuffer_create_and_lock_fptr = 0x006E1260;
-  
-  if ( someptr < size )
-  {
-    // create vb and lock
-    void* pdata {nullptr};
-    {
-        __asm {
-            mov esi, dword ptr [size]
-            push esi
-            mov ecx, dword ptr [d3d_vbuffer_struct_static]
-            call d3d_vbuffer_create_and_lock_fptr
-            mov dword ptr [pdata], eax
-        }
-        assert(pdata != NULL);
-
-    }
-    //pDataVb = d3d_create_and_lock_vb_sub_6E1260((d3d_vbuffer *)&dword_252FFA8, 0x38 * dword_252FFA4);
-    v16 = (Vector4 *)pDataVb;
-    LOBYTE(pDataVb) = pDataVb != 0;
-    assert_sub_6DC540((const CHAR *)pDataVb);
-    if ( !v16 )
-    {
-      v17 = 0x80004005;
-      goto LABEL_40;
-    }
-    v18 = dword_252FF90;
-    if ( v14 > 0xE000 )
-    {
-      v19 = (v14 - 1) / 0xE000;
-      do
-      {
-        vector4_copy_sub_6E1BC0(v16, (Vector4 *)v18, 0xE000u);
-        v18 = *(_DWORD *)(v18 + 0xE000);
-        v16 += 0xE00;
-        v14 -= 0xE000;
-        --v19;
-      }
-      while ( v19 );
-    }
-    vector4_copy_sub_6E1BC0(v16, (Vector4 *)v18, v14);
-    d3d_unlock_sub_6E12E0((d3d_vbuffer *)&dword_252FFA8);
-  }
-  v17 = 0;
-LABEL_40:
-  D3D_reportErrorMaybe_sub_6DC510();
-  if ( v17 >= 0 )
-  {
-    if ( (DWORD *)dword_252FFEC == &dword_252FFA8 )
-    {
-      result = 0;
-      dword_252FFF0 = 1;
-      return result;
-    }
-    result = d3d_set_stream_source_and_FVF_sub_6E1310((d3d_vbuffer *)&dword_252FFA8, 0x38u);
-  }
-  else
-  {
-    result = v17;
-  }
-LABEL_45:
-  if ( result < 0 )
-    goto LABEL_5;
-  dword_252FFF0 = a1;
-  return result;
-}
-#endif
-
 struct TempDIPThings {
-    INT base_vertex_index { 0 };
-    UINT min_vertex_index { 0 };
-    UINT num_vertices { 30438 };
-    UINT start_index { 3321 };
-    UINT prim_count { 24 };
+    INT base_vertex_index{0};
+    UINT min_vertex_index{0};
+    UINT num_vertices{30438};
+    UINT start_index{3321};
+    UINT prim_count{24};
 };
 
 static TempDIPThings g_temp_dip_things{};
@@ -472,42 +99,41 @@ static void d3d_draw_prim_wrapper(std::vector<std::pair<DWORD, DWORD>>& batches)
     static IDirect3DDevice9* pdevice = device_ptr->device;
     d3d_vbuffer* static_vbuffer      = (d3d_vbuffer*)0x0252FFA8;
 
-    //std::reverse(batches.begin(), batches.end());
+    // std::reverse(batches.begin(), batches.end());
     DWORD primitve_count = std::accumulate(batches.begin(), batches.end(), 0, [](DWORD acc, const std::pair<DWORD, DWORD>& pair) {
         return acc + pair.second;
     });
-    UINT numvertices = batches.back().first - batches.front().first;
+    UINT numvertices     = batches.back().first - batches.front().first;
     if (static_vbuffer->pindexbuffer) {
         pdevice->SetIndices(static_vbuffer->pindexbuffer);
     }
     UINT index_count = 0;
-    for (const auto& batch: batches) {
-    //HRESULT result = pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, batch.first, batch.second);
-    HRESULT result = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, batch.first, 0, batch.second, 0, batch.second);
-    assert(result == S_OK);
-    //printf("hehe\n");
+    for (const auto& batch : batches) {
+        // HRESULT result = pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, batch.first, batch.second);
+        HRESULT result = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP, batch.first, 0, batch.second, 0, batch.second);
+        assert(result == S_OK);
+        // printf("hehe\n");
     }
-    //HRESULT result = pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, batches.front().first, primitve_count);
+    // HRESULT result = pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, batches.front().first, primitve_count);
 }
 void d3d_emplace_back_triangles(std::vector<std::pair<DWORD, DWORD>>& batches, UINT vertexCount, UINT primitve_count, char a3) {
     typedef int (*d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)(int a1);
-    d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t  d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0 = (d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)0x006E1C00;
-    DWORD benis = *(DWORD*)0x0252FFF0;
+    d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0 = (d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)0x006E1C00;
+    DWORD benis                                                                                                                       = *(DWORD*)0x0252FFF0;
 
-    if((vertexCount & 3) == benis || 
-        d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0(vertexCount & 3) >= 0
-    ) {
+    if ((vertexCount & 3) == benis ||
+        d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0(vertexCount & 3) >= 0) {
         DWORD start_vertex = vertexCount >> 2;
-        if(a3) {
+        if (a3) {
             auto v5 = 2;
-            if( start_vertex < v5) {
+            if (start_vertex < v5) {
                 return;
             }
             start_vertex -= v5;
             primitve_count += v5;
         }
         batches.emplace_back(start_vertex, primitve_count - 2);
-        //pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, start_vertex, primitve_count - 2);
+        // pdevice->DrawPrimitive(D3DPT_TRIANGLESTRIP, start_vertex, primitve_count - 2);
     }
 #if 0
     typedef int (*d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)(int a1);
@@ -538,7 +164,7 @@ void d3d_emplace_back_triangles(std::vector<std::pair<DWORD, DWORD>>& batches, U
         size_t index_count = a1 - a2;
         size_t unindexed_vertex_count = index_count;
         std::reverse(batcherinos.begin(), batcherinos.end());
-        #if 0
+#if 0
         std::vector<unsigned int> remap(index_count);
         std::vector<unsigned int> indices(index_count);
         std::iota(indices.begin(), indices.end(), batches.back().first);
@@ -553,7 +179,7 @@ void d3d_emplace_back_triangles(std::vector<std::pair<DWORD, DWORD>>& batches, U
         memcpy(d3dindices, indices.data(), sizeof(DWORD) * index_count);
 
         indexBuffer->Unlock();
-        #endif
+#endif
         if(static_vbuffer->pindexbuffer) {
             pdevice->SetIndices(static_vbuffer->pindexbuffer);
         }
@@ -568,18 +194,17 @@ void d3d_emplace_back_triangles(std::vector<std::pair<DWORD, DWORD>>& batches, U
 
 void d3d_draw_primitive_maybe_sub_6E1C00(DWORD vertexCount, DWORD primitve_count, char a3) {
     typedef int (*d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)(int a1);
-    d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t  d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0 = (d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)0x006E1C00;
-    DWORD benis = *(DWORD*)0x0252FFF0;
-    static D3DDevicePtr* device_ptr = (D3DDevicePtr*)0x0252F374;
-    static IDirect3DDevice9* pdevice = device_ptr->device;
+    d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0 = (d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0_t)0x006E1C00;
+    DWORD benis                                                                                                                       = *(DWORD*)0x0252FFF0;
+    static D3DDevicePtr* device_ptr                                                                                                   = (D3DDevicePtr*)0x0252F374;
+    static IDirect3DDevice9* pdevice                                                                                                  = device_ptr->device;
 
-    if((vertexCount & 3) == benis || 
-        d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0(vertexCount & 3) >= 0
-    ) {
+    if ((vertexCount & 3) == benis ||
+        d3d_switch_on_buffer_types_copy_data_and_lock_dmc3se_sub_6E18F0(vertexCount & 3) >= 0) {
         DWORD start_vertex = vertexCount >> 2;
-        if(a3) {
+        if (a3) {
             auto v5 = 2;
-            if( start_vertex < v5) {
+            if (start_vertex < v5) {
                 return;
             }
             start_vertex -= v5;
@@ -592,48 +217,46 @@ void d3d_draw_primitive_maybe_sub_6E1C00(DWORD vertexCount, DWORD primitve_count
 
 static HRESULT __stdcall d3d_dispatch_drawcalls(MeshDrawDataMaybe* mdd, char a3) {
 
-    DWORD start_vertex { mdd->start_vertex};
-    DWORD prim_count {mdd->prim_count};
-    MeshDrawDataMaybe* m_next_draw_data = mdd->m_next_mesh_draw_data;
+    DWORD start_vertex{mdd->start_vertex};
+    DWORD prim_count{mdd->prim_count};
+    MeshDrawDataMaybe* m_next_draw_data               = mdd->m_next_mesh_draw_data;
     static constexpr void* d3d_draw_prim_func_address = &d3d_draw_primitive_maybe_sub_6E1C00;
-
 
     std::vector<std::pair<DWORD, DWORD>> batches;
 #if 1
     do {
-        if((start_vertex & 3) != 1) {
+        if ((start_vertex & 3) != 1) {
             d3d_draw_primitive_maybe_sub_6E1C00(start_vertex, prim_count, a3);
             batches.clear();
-        }
-        else {
+        } else {
             d3d_emplace_back_triangles(batches, start_vertex, prim_count, a3);
         }
-        if(m_next_draw_data) {
-        start_vertex = m_next_draw_data->start_vertex;
-        prim_count = m_next_draw_data->prim_count;
-        m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
+        if (m_next_draw_data) {
+            start_vertex     = m_next_draw_data->start_vertex;
+            prim_count       = m_next_draw_data->prim_count;
+            m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
         }
-    } while(m_next_draw_data != NULL);
-    if(batches.size() > 0) {
+    } while (m_next_draw_data != NULL);
+    if (batches.size() > 0) {
         d3d_draw_prim_wrapper(batches);
     }
 #else
-        do {
+    do {
         d3d_draw_primitive_maybe_sub_6E1C00(start_vertex, prim_count, a3);
-        if(m_next_draw_data) {
-        start_vertex = m_next_draw_data->start_vertex;
-        prim_count = m_next_draw_data->prim_count;
-        m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
+        if (m_next_draw_data) {
+            start_vertex     = m_next_draw_data->start_vertex;
+            prim_count       = m_next_draw_data->prim_count;
+            m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
         }
-    } while(m_next_draw_data != NULL);
+    } while (m_next_draw_data != NULL);
 #endif
-    #if 0
+#if 0
     while (m_next_draw_data != NULL) {
         start_vertex = m_next_draw_data->start_vertex;
         prim_count = m_next_draw_data->prim_count;
         m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
     }
-    #endif
+#endif
     return D3D_OK;
 #if 0
     DWORD start_vertex { mdd->start_vertex };
@@ -658,7 +281,7 @@ static HRESULT __stdcall d3d_dispatch_drawcalls(MeshDrawDataMaybe* mdd, char a3)
             retval = pdevice->DrawPrimitive(D3DPT_TRIANGLELIST, start_vertex>>2, prim_count-1);
         }
         //return retval;
-        #if 0
+#if 0
         __asm {
             mov edx, dword ptr[a3]
             mov eax, dword ptr[prim_count]
@@ -670,7 +293,7 @@ static HRESULT __stdcall d3d_dispatch_drawcalls(MeshDrawDataMaybe* mdd, char a3)
             call eax
             add esp, 0Ch
         }
-        #endif
+#endif
         //}
         if (m_next_draw_data) {
             m_next_draw_data = m_next_draw_data->m_next_mesh_draw_data;
@@ -695,9 +318,9 @@ static HRESULT __stdcall d3d_dispatch_drawcalls(MeshDrawDataMaybe* mdd, char a3)
     //DWORD type = start_vertex & 3;
 
     //return device_ptr->device->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, g_vertices, 0, prim_count);
-    #if 0
-    
-    #endif
+#if 0
+
+#endif
 
     DWORD iterator = 0;
     while (m_next_draw_data)
@@ -707,7 +330,7 @@ static HRESULT __stdcall d3d_dispatch_drawcalls(MeshDrawDataMaybe* mdd, char a3)
     }
     printf("drawcal iterator: %d \n", iterator);
     return D3D_OK;
-    #endif
+#endif
 }
 
 static uintptr_t d3d_dispatch_drawcall_jmp_back = 0x006DF677;
@@ -725,798 +348,477 @@ static __declspec(naked) void d3d_dispatch_drawcall() {
 }
 // clang-format on
 
-class VertexDef
-{
+class VertexDef {
 public:
-    Vector3 pos; //0x0000
-    Vector3 norm; //0x000C
-    uint8_t diff_r; //0x0018
-    uint8_t diff_g; //0x0019
-    uint8_t diff_b; //0x001A
-    uint8_t diff_a; //0x001B
-    uint8_t spec_r; //0x001C
-    uint8_t spec_g; //0x001D
-    uint8_t spec_b; //0x001E
-    uint8_t spec_a; //0x001F
-    Vector2 uv0; //0x0020
-    Vector2 uv1; //0x0028
-    Vector2 uv2; //0x0030
-}; //Size: 0x0038
+    Vector3 pos;    // 0x0000
+    Vector3 norm;   // 0x000C
+    uint8_t diff_r; // 0x0018
+    uint8_t diff_g; // 0x0019
+    uint8_t diff_b; // 0x001A
+    uint8_t diff_a; // 0x001B
+    uint8_t spec_r; // 0x001C
+    uint8_t spec_g; // 0x001D
+    uint8_t spec_b; // 0x001E
+    uint8_t spec_a; // 0x001F
+    Vector2 uv0;    // 0x0020
+    Vector2 uv1;    // 0x0028
+    Vector2 uv2;    // 0x0030
+}; // Size: 0x0038
 
-#if 0
-class VertexBuf
-{
-public:
-    class VertexDef vdef[]; //0x0000
-}; //Size: 0x2530
-
-typedef std::pair<VertexDef, int> VPair;
-
-struct CmpClass {
-    static constexpr float eps_ = 0.001f;
-    bool operator() (const VPair& p1, const VPair& p2) const {
-        if(glm::abs(p1.first.pos.x - p2.first.pos.x) > eps_) { return p1.first.pos.x < p2.first.pos.x; }
-        if(glm::abs(p1.first.pos.y - p2.first.pos.y) > eps_) { return p1.first.pos.y < p2.first.pos.y; }
-        if(glm::abs(p1.first.pos.z - p2.first.pos.z) > eps_) { return p1.first.pos.z < p2.first.pos.z; }
-
-        return false;
-    }
-};
-
-static void __stdcall d3d_release_ib_hack(d3d_vbuffer* buf) {
-    if(buf->pindexbuffer) {
-        buf->pindexbuffer->Release();
-    }
-    buf->pindexbuffer = 0;
-    g_index_lookup_table.clear();
-}
-
-static constexpr uintptr_t d3d_release_ib_jmp_back = 0x006E1255;
-static void __declspec(naked) d3d_release_ib() {
-    __asm {
-        pushad
-        push esi
-        call d3d_release_ib_hack
-        popad
-        mov [esi+8], edi
-        mov [esi+0Ch], edi
-        jmp DWORD PTR [d3d_release_ib_jmp_back]
-    }
-}
-
-struct Edge {
-    int vertex1;
-    int vertex2;
-};
-
-static void __stdcall d3d_before_unlock(VertexBuf* vertex_attrib_buffer) {
-    DWORD total_idk= *(DWORD*)0x0252FFA4;
-    if((total_idk % 0x38) == 0) {
-        __debugbreak();
-    }
-    DWORD total_indices = (total_idk / 0x38);
-    static D3DDevicePtr* device_ptr = (D3DDevicePtr*)0x0252F374;
-    d3d_vbuffer* static_vbuffer = (d3d_vbuffer*)0x0252FFA8;
-    
-    std::set<VPair, CmpClass> vertices;
-    std::vector<int> indices;
-    std::vector<VertexDef> vbuffer;
-    int index = 0;
-
-    for (int i = 0; i < total_indices; i = i+3) {
-        // compute the triangle's facing direction
-        VertexDef& v1 = vertex_attrib_buffer->vdef[i];
-        VertexDef& v2 = vertex_attrib_buffer->vdef[i+1];
-        VertexDef& v3 = vertex_attrib_buffer->vdef[i+2];
-
-        // get the edges for the basis
-        Vector3 fe1 = v3.pos - v1.pos;
-        Vector3 fe2 = v2.pos - v1.pos;
-        fe1 = glm::normalize(fe1);
-        fe2 = glm::normalize(fe2);
-
-        // calculate the face normal
-        Vector3 z = glm::cross(fe1, fe2);
-        z = glm::normalize(z);
-
-        // add the imported vertex normals together to get the face normal
-        Vector3 n1 = v1.norm;
-        Vector3 n2 = v2.norm;
-        Vector3 n3 = v3.norm;
-
-        Vector3 normal = n1 + n2 + n3;
-        normal = glm::normalize(normal);
-
-        // check whether the triangle is facing in the imported normals direction and flip it otherwise
-        bool wnd = glm::dot(normal, z) > 0.0f;
-
-        if (wnd) {
-            vbuffer.push_back(v1);
-            vbuffer.push_back(v3);
-            vbuffer.push_back(v2);
-        }
-        else {
-            vbuffer.push_back(v1);
-            vbuffer.push_back(v2);
-            vbuffer.push_back(v3);
-        }
-        indices.push_back(index++);
-    }
-    
-#if 0
-    for (int i = 0; i < total_indices; i++) {
-        std::set<VPair>::iterator it = vertices.find(std::make_pair(vertex_attrib_buffer->vdef[i], 0/*this value doesn't matter*/));
-        g_index_lookup_table[i] = index;
-        if(it != vertices.end()) {
-            indices.push_back(it->second);
-        }
-        else {
-            vertices.insert(std::make_pair(vertex_attrib_buffer->vdef[i], index));
-            indices.push_back(index++);
-        }
-        
-    }
-#endif
-    // NOTE(): vertices in the set are not sorted by the index
-    // so we'll have to rearange them like this:
-    //vbuffer.resize(vertices.size());
-    //for (const auto& vert: vertices) {
-    //    vbuffer[vert.second] = vert.first;
-    //}
-    
-    memcpy(vertex_attrib_buffer, vbuffer.data(), vbuffer.size() * sizeof(VertexDef));
-    device_ptr->device->CreateIndexBuffer(indices.size() * sizeof(DWORD), D3DUSAGE_DONOTCLIP, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &static_vbuffer->pindexbuffer, NULL);
-    DWORD* d3dindices{};
-    static_vbuffer->pindexbuffer->Lock(0, 0, (void**)&d3dindices, 0);
-
-    memcpy(d3dindices, indices.data(), sizeof(DWORD) * indices.size());
-    static_vbuffer->pindexbuffer->Unlock();
-
-    #if 0
-    meshopt_Stream streams[] = {
-        {&vertex_attrib_buffer->vdef->pos,  sizeof(float) * 3, 0x38}, // pos
-        {&vertex_attrib_buffer->vdef->norm, sizeof(float) * 3, 0x38}, // normals
-        {&vertex_attrib_buffer->vdef->uv0,  sizeof(float) * 2, 0x38}, // uvs
-    };
-    std::vector<unsigned int> remap(total_indices);
-    size_t total_vertices = meshopt_generateVertexRemapMulti(&remap[0], NULL, total_indices, total_indices, streams, sizeof(streams) / sizeof(streams[0]));
-    g_vertices = total_vertices;
-    std::vector<unsigned int> indices(total_indices);
-    meshopt_remapIndexBuffer(&indices[0], NULL, total_indices, &remap[0]);
-
-    #if 1
-    device_ptr->device->CreateIndexBuffer(total_indices * sizeof(DWORD), 0, D3DFMT_INDEX32, D3DPOOL_DEFAULT, &indexBuffer, NULL);
-    DWORD* d3dindices{};
-    indexBuffer->Lock(0, 0, (void**)&d3dindices, 0);
-
-    memcpy(d3dindices, indices.data(), sizeof(DWORD) * total_vertices);
-
-    indexBuffer->Unlock();
-    //device_ptr->device->SetIndices(indexBuffer);
-    #endif
-    #endif
-}
-
-static uintptr_t d3d_before_unlock_jmp_back = 0x006E1B5E;
-static uintptr_t d3d_unlock_sub_6E12E0 = 0x006E12E0;
-// clang-format off
-static __declspec(naked) void d3d_before_unlock_naked() {
-    __asm {
-        push ebx
-        call d3d_before_unlock
-        mov ecx, 0252FFA8h
-        call d3d_unlock_sub_6E12E0
-        jmp dword ptr[d3d_before_unlock_jmp_back]
-    }
-}
-
-// clang-format on
-
-#if 0
-#pragma region reclass
-class MeshDataSorting {
-public:
-    uint32_t idk0;                            // 0x0000
-    uint32_t num_elements;                    // 0x0004
-    uint32_t something;                       // 0x0008
-    class SomeMeshDataSorting* ptr_mesh_data; // 0x000C
-    char pad_0010[48];                        // 0x0010
-};                                            // Size: 0x0040
-
-class SomeMeshDataSorting {
-public:
-    uint16_t number_of_elements;                             // 0x0000
-    uint16_t idk;                                            // 0x0002
-    char pad_0004[8];                                        // 0x0004
-    Vector3 (**ptr_array_of_verts);                      // 0x000C
-    Vector3 (**ptr_array_of_normals);                    // 0x0010
-    uint32_t (**ptr_array_of_uvs);                        // 0x0014
-    char pad_0018[8];                                        // 0x0018
-    class MeshPackedColors (**ptr_array_of_spec_colors); // 0x0020
-    char pad_0024[12];                                       // 0x0024
-};                                                           // Size: 0x0030
-
-class MeshPackedColors {
-public:
-    uint8_t N000000AB; // 0x0000
-    uint8_t N000000AD; // 0x0001
-    uint8_t N000000B0; // 0x0002
-    uint8_t N000000AE; // 0x0003
-};                     // Size: 0x0004
-
-class RDrawSomethingStruct {
-public:
-    uint8_t col_r0;                         // 0x0000
-    uint8_t col_g0;                         // 0x0001
-    uint8_t col_b0;                         // 0x0002
-    uint8_t col_a0;                         // 0x0003
-    uint8_t col_r1;                         // 0x0004
-    uint8_t col_g1;                         // 0x0005
-    uint8_t col_b1;                         // 0x0006
-    uint8_t col_a1;                         // 0x0007
-    Matrix4x4* p_some_matrix;               // 0x0008
-    class MeshDataSorting* MeshDataSorting; // 0x000C
-    uint32_t some_flags;                    // 0x0010
-};                                          // Size: 0x0014
-
-#pragma endregion
-
-static void __stdcall optimize_mesh_data(RDrawSomethingStruct* rd) {
-
-    uint32_t index_count     = rd->MeshDataSorting->ptr_mesh_data->number_of_elements;
-    if (index_count % 3 != 0) {
-        return;
-    }
-    meshopt_Stream streams[] = {
-        {&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_verts[0], sizeof(float) * 3, sizeof(float) * 3},
-        {&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_normals[0], sizeof(float) * 3, sizeof(float) * 3},
-        {&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_uvs[0], sizeof(uint32_t), sizeof(uint32_t)},
-        {&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_spec_colors[0], sizeof(uint32_t), sizeof(uint32_t)},
-    };
-
-    std::vector<unsigned int> remap(index_count);
-    size_t vertex_count = meshopt_generateVertexRemapMulti(&remap[0], NULL, index_count, 
-        index_count, streams, sizeof(streams) / sizeof(streams[0]));
-
-    std::vector<Vector3> vertices(index_count);
-    meshopt_remapVertexBuffer(vertices.data(), &rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_verts[0],
-        index_count, sizeof(Vector3f), &remap[0]);
-    
-    std::vector<unsigned int> index_buffer(index_count);
-    meshopt_remapIndexBuffer(index_buffer.data(), NULL, index_count, &remap[0]);
-
-    std::vector<Vector3> normals(index_count);
-    meshopt_remapVertexBuffer(normals.data(), &rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_normals[0],
-        index_count, sizeof(Vector3f), &remap[0]);
-
-    std::vector<uint32_t> uvs(index_count);
-    meshopt_remapVertexBuffer(uvs.data(), &rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_uvs[0],
-        index_count, sizeof(uint32_t), &remap[0]);
-
-    std::vector<uint32_t> specs(index_count);
-    meshopt_remapVertexBuffer(specs.data(), &rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_spec_colors[0],
-        index_count, sizeof(uint32_t), &remap[0]);
-    return;
-    memcpy(&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_verts[0],   vertices.data(),  sizeof(Vector3f) * index_count);
-    memcpy(&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_normals[0], normals.data(),   sizeof(Vector3f) * index_count);
-    memcpy(&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_uvs[0],     uvs.data(),       sizeof(uint32_t) * index_count);
-    memcpy(&rd->MeshDataSorting->ptr_mesh_data->ptr_array_of_spec_colors[0], specs.data(), sizeof(uint32_t) * index_count);
-
-    //__debugbreak();
-
-}
-
-
-
-static uintptr_t r_prep_mesh_datas_jmp_back = 0x006DE49F;
-// clang-format off
-static __declspec(naked) void r_prep_mesh_datas() {
-    __asm {
-            mov     ecx, [edi+0Ch]
-            pushad
-            push edi
-            call optimize_mesh_data
-            popad
-            mov     [esp+14h], ecx
-        jmp dword ptr[r_prep_mesh_datas_jmp_back]
-    }
-}
-// clang-format on
-#endif
-
-#endif
 #pragma region cdraw_reclass
 // Created with ReClass.NET 1.2 by KN4CK3R
 
-class cDrawSub
-{
+class cDrawSub {
 public:
-    class ModTansformsMatrices *obj_transforms_matrices_ptr; //0x0000
-    uint8_t *skel_hierarchy; //0x0004
-    uint8_t *skel_indicies_ptr; //0x0008
-    uint8_t *skel_object_roots; //0x000C
-    class ModTransformVec *skel_bones_ptr; //0x0010
-    class IDraw *IDrawVtable; //0x0014
-    class IDrawOperate *IDrawOperateVtable; //0x0018
-    char pad_001C[132]; //0x001C
-    uint32_t draw_flag_or_something; //0x00A0
-    uint32_t ass; //0x00A4
-    uint16_t object_count; //0x00A8
-    uint16_t bone_count; //0x00AA
-    uint16_t tex_count; //0x00AC
-    uint16_t idk3; //0x00AE
-    uint32_t unk1; //0x00B0
-    uint32_t unk2; //0x00B4
-    uint16_t unk3; //0x00B8
-    uint16_t unk4; //0x00BA
-    class SomeModelData *modnrender_data_ptr; //0x00BC
-    class rModel *model_ptr; //0x00C0
-    class rTim2 *texture_ptr; //0x00C4
-    class TextureStuff0 (*texture_stuff0_ptr)[5]; //0x00C8
-    class TextureStuff1 *texture_stuff1_ptr; //0x00CC
-    class cDrawSubUnk2 *cdrawsub2_unk0_ptr; //0x00D0
-    class cDrawSubUnk2 *cdrawsub2_unk1_ptr; //0x00D4
-    class cDrawSubUnk2 *cdrawsub2_unk2_ptr; //0x00D8
-    class cDrawSubUnk2 *cdrawsub2_unk3_ptr; //0x00DC
-    class cDrawSubUnk2 *cdrawsub2_unk4_ptr; //0x00E0
-    class cDrawSubUnk2 *cdrawsub2_unk5_ptr; //0x00E4
-    class SomeTextureUintsIdk (*some_texture_uints_ptr)[2]; //0x00E8
-    class cDrawSubUnk6 *cdrawsub_unk6_ptr; //0x00EC
-    class SomeTextureAlphaThing (*some_texture_alpha_thing_ptr)[1]; //0x00F0
-    class SomeTextureAlphaThing *some_texture_alpha_thing_ptr1; //0x00F4
-    Matrix4x4 *bone_matrices_ptr; //0x00F8
-    class cDrawSubUnk7 *cdrawsub_unk7_ptr; //0x00FC
-    Matrix4x4 *some_matrix_ptr; //0x0100
-    class UnkVecMaybe *some_ptr_vec_maybe; //0x0104
-    char pad_0108[8]; //0x0108
-    Matrix4x4 some_matrix0; //0x0110
-    Matrix4x4 some_matrix1; //0x0150
-}; //Size: 0x0190
+    class ModTansformsMatrices* obj_transforms_matrices_ptr;        // 0x0000
+    uint8_t* skel_hierarchy;                                        // 0x0004
+    uint8_t* skel_indicies_ptr;                                     // 0x0008
+    uint8_t* skel_object_roots;                                     // 0x000C
+    class ModTransformVec* skel_bones_ptr;                          // 0x0010
+    class IDraw* IDrawVtable;                                       // 0x0014
+    class IDrawOperate* IDrawOperateVtable;                         // 0x0018
+    char pad_001C[132];                                             // 0x001C
+    uint32_t draw_flag_or_something;                                // 0x00A0
+    uint32_t ass;                                                   // 0x00A4
+    uint16_t object_count;                                          // 0x00A8
+    uint16_t bone_count;                                            // 0x00AA
+    uint16_t tex_count;                                             // 0x00AC
+    uint16_t idk3;                                                  // 0x00AE
+    uint32_t unk1;                                                  // 0x00B0
+    uint32_t unk2;                                                  // 0x00B4
+    uint16_t unk3;                                                  // 0x00B8
+    uint16_t unk4;                                                  // 0x00BA
+    class SomeModelData* modnrender_data_ptr;                       // 0x00BC
+    class rModel* model_ptr;                                        // 0x00C0
+    class rTim2* texture_ptr;                                       // 0x00C4
+    class TextureStuff0 (*texture_stuff0_ptr)[5];                   // 0x00C8
+    class TextureStuff1* texture_stuff1_ptr;                        // 0x00CC
+    class cDrawSubUnk2* cdrawsub2_unk0_ptr;                         // 0x00D0
+    class cDrawSubUnk2* cdrawsub2_unk1_ptr;                         // 0x00D4
+    class cDrawSubUnk2* cdrawsub2_unk2_ptr;                         // 0x00D8
+    class cDrawSubUnk2* cdrawsub2_unk3_ptr;                         // 0x00DC
+    class cDrawSubUnk2* cdrawsub2_unk4_ptr;                         // 0x00E0
+    class cDrawSubUnk2* cdrawsub2_unk5_ptr;                         // 0x00E4
+    class SomeTextureUintsIdk (*some_texture_uints_ptr)[2];         // 0x00E8
+    class cDrawSubUnk6* cdrawsub_unk6_ptr;                          // 0x00EC
+    class SomeTextureAlphaThing (*some_texture_alpha_thing_ptr)[1]; // 0x00F0
+    class SomeTextureAlphaThing* some_texture_alpha_thing_ptr1;     // 0x00F4
+    Matrix4x4* bone_matrices_ptr;                                   // 0x00F8
+    class cDrawSubUnk7* cdrawsub_unk7_ptr;                          // 0x00FC
+    Matrix4x4* some_matrix_ptr;                                     // 0x0100
+    class UnkVecMaybe* some_ptr_vec_maybe;                          // 0x0104
+    char pad_0108[8];                                               // 0x0108
+    Matrix4x4 some_matrix0;                                         // 0x0110
+    Matrix4x4 some_matrix1;                                         // 0x0150
+}; // Size: 0x0190
 
-class cDrawSCM
-{
+class cDrawSCM {
 public:
-    char pad_0000[44]; //0x0000
-    class cDrawSub N0000005A; //0x002C
-    char pad_01BC[4116]; //0x01BC
-}; //Size: 0x11D0
+    char pad_0000[44];        // 0x0000
+    class cDrawSub N0000005A; // 0x002C
+    char pad_01BC[4116];      // 0x01BC
+}; // Size: 0x11D0
 
-class rTim2
-{
+class rTim2 {
 public:
-    char pad_0000[2048]; //0x0000
-    char tim2header[4]; //0x0800
-    char pad_0804[2048]; //0x0804
-}; //Size: 0x1004
+    char pad_0000[2048]; // 0x0000
+    char tim2header[4];  // 0x0800
+    char pad_0804[2048]; // 0x0804
+}; // Size: 0x1004
 
-class rModelObjectHeaders
-{
+class rModelObjectHeaders {
 public:
-    uint8_t meshCount; //0x0000
-    uint8_t unk; //0x0001
-    uint16_t vertCount; //0x0002
-    class rModelMesh *objectOffset; //0x0004
-    uint32_t objFlags; //0x0008
-    uint8_t reserved[20]; //0x000C
-    Vector3 spherePos; //0x0020
-    float radius; //0x002C
-}; //Size: 0x0030
+    uint8_t meshCount;              // 0x0000
+    uint8_t unk;                    // 0x0001
+    uint16_t vertCount;             // 0x0002
+    class rModelMesh* objectOffset; // 0x0004
+    uint32_t objFlags;              // 0x0008
+    uint8_t reserved[20];           // 0x000C
+    Vector3 spherePos;              // 0x0020
+    float radius;                   // 0x002C
+}; // Size: 0x0030
 
-class rModel
-{
+class rModel {
 public:
-    char modfourcc[4]; //0x0000
-    float version; //0x0004
-    uint64_t reserved; //0x0008
-    uint8_t objectCount; //0x0010
-    uint8_t boneCount; //0x0011
-    uint8_t texCount; //0x0012
-    uint8_t unk[9]; //0x0013
-    uint32_t skelOffset; //0x001C
-    char pad_0020[16]; //0x0020
-    class rModelObjectHeaders N00000E39; //0x0030
-    char pad_0060[220]; //0x0060
-}; //Size: 0x013C
+    char modfourcc[4];                   // 0x0000
+    float version;                       // 0x0004
+    uint64_t reserved;                   // 0x0008
+    uint8_t objectCount;                 // 0x0010
+    uint8_t boneCount;                   // 0x0011
+    uint8_t texCount;                    // 0x0012
+    uint8_t unk[9];                      // 0x0013
+    uint32_t skelOffset;                 // 0x001C
+    char pad_0020[16];                   // 0x0020
+    class rModelObjectHeaders N00000E39; // 0x0030
+    char pad_0060[220];                  // 0x0060
+}; // Size: 0x013C
 
-class cDraw
-{
+class cDraw {
 public:
-    char pad_0000[8]; //0x0000
-    uint32_t some_field; //0x0008
-    uint32_t pad; //0x000C
-    uint32_t draw_flag; //0x0010
-    class rTim2 *tim2; //0x0014
-    uint32_t pad1; //0x0018
-    void *some_allocator_type_thing1; //0x001C
-    void *some_allocator_type_thing; //0x0020
-    uint32_t notSure; //0x0024
-    uint32_t notSure1; //0x0028
-    class cDrawSub cDrawSub; //0x002C
-}; //Size: 0x01BC
+    char pad_0000[8];                 // 0x0000
+    uint32_t some_field;              // 0x0008
+    uint32_t pad;                     // 0x000C
+    uint32_t draw_flag;               // 0x0010
+    class rTim2* tim2;                // 0x0014
+    uint32_t pad1;                    // 0x0018
+    void* some_allocator_type_thing1; // 0x001C
+    void* some_allocator_type_thing;  // 0x0020
+    uint32_t notSure;                 // 0x0024
+    uint32_t notSure1;                // 0x0028
+    class cDrawSub cDrawSub;          // 0x002C
+}; // Size: 0x01BC
 
-class ModTransformVec
-{
+class ModTransformVec {
 public:
-    Vector4 pos; //0x0000
-    Vector4 rot; //0x0010
-}; //Size: 0x0020
+    Vector4 pos; // 0x0000
+    Vector4 rot; // 0x0010
+}; // Size: 0x0020
 
-class ModTansformsMatrices
-{
+class ModTansformsMatrices {
 public:
-    Matrix4x4 unk; //0x0000
-    Matrix4x4 world_maybe; //0x0040
-    class ModTansformsMatrices *next; //0x0080
-    uint32_t idk; //0x0084
-}; //Size: 0x0088
+    Matrix4x4 unk;                    // 0x0000
+    Matrix4x4 world_maybe;            // 0x0040
+    class ModTansformsMatrices* next; // 0x0080
+    uint32_t idk;                     // 0x0084
+}; // Size: 0x0088
 
-class TextureStuff1
-{
+class TextureStuff1 {
 public:
-    char pad_0000[4100]; //0x0000
-}; //Size: 0x1004
+    char pad_0000[4100]; // 0x0000
+}; // Size: 0x1004
 
-class TextureStuff0
-{
+class TextureStuff0 {
 public:
-    void *some_texture_offset; //0x0000
-    uint32_t field_04; //0x0004
-    uint32_t field_08; //0x0008
-    uint32_t field_0C; //0x000C
-    uint32_t field_10; //0x0010
-    uint32_t field_14; //0x0014
-    uint32_t field_18; //0x0018
-    uint32_t field_1C; //0x001C
-    uint32_t field_20; //0x0020
-    uint32_t field_24; //0x0024
-    uint32_t field_28; //0x0028
-    uint32_t field_2c; //0x002C
-}; //Size: 0x0030
+    void* some_texture_offset; // 0x0000
+    uint32_t field_04;         // 0x0004
+    uint32_t field_08;         // 0x0008
+    uint32_t field_0C;         // 0x000C
+    uint32_t field_10;         // 0x0010
+    uint32_t field_14;         // 0x0014
+    uint32_t field_18;         // 0x0018
+    uint32_t field_1C;         // 0x001C
+    uint32_t field_20;         // 0x0020
+    uint32_t field_24;         // 0x0024
+    uint32_t field_28;         // 0x0028
+    uint32_t field_2c;         // 0x002C
+}; // Size: 0x0030
 
-class UnkVecMaybe
-{
+class UnkVecMaybe {
 public:
-    Vector4 maybe_vec; //0x0000
-}; //Size: 0x0010
+    Vector4 maybe_vec; // 0x0000
+}; // Size: 0x0010
 
-class SomeTextureUintsIdk
-{
+class SomeTextureUintsIdk {
 public:
-    uint32_t field0; //0x0000
-    uint32_t field4; //0x0004
-    uint32_t field8; //0x0008
-    uint32_t fieldC; //0x000C
-    char pad_0010[8]; //0x0010
-    uint32_t field18; //0x0018
-    uint32_t field1C; //0x001C
-    char pad_0020[8]; //0x0020
-    uint32_t field28; //0x0028
-    char pad_002C[4]; //0x002C
-}; //Size: 0x0030
+    uint32_t field0;  // 0x0000
+    uint32_t field4;  // 0x0004
+    uint32_t field8;  // 0x0008
+    uint32_t fieldC;  // 0x000C
+    char pad_0010[8]; // 0x0010
+    uint32_t field18; // 0x0018
+    uint32_t field1C; // 0x001C
+    char pad_0020[8]; // 0x0020
+    uint32_t field28; // 0x0028
+    char pad_002C[4]; // 0x002C
+}; // Size: 0x0030
 
-class SomeTextureAlphaThing
-{
+class SomeTextureAlphaThing {
 public:
-    float flt0; //0x0000
-    float flt4; //0x0004
-    float flt8; //0x0008
-    float fltC; //0x000C
-    float flt10; //0x0010
-    float flt14; //0x0014
-    float flt18; //0x0018
-    float flt1C; //0x001C
-}; //Size: 0x0020
+    float flt0;  // 0x0000
+    float flt4;  // 0x0004
+    float flt8;  // 0x0008
+    float fltC;  // 0x000C
+    float flt10; // 0x0010
+    float flt14; // 0x0014
+    float flt18; // 0x0018
+    float flt1C; // 0x001C
+}; // Size: 0x0020
 
-class rModelHeader
-{
+class rModelHeader {
 public:
-    char fourcc[4]; //0x0000
-    float version; //0x0004
-    uint64_t reserved; //0x0008
-    uint8_t objectCount; //0x0010
-    uint8_t boneCount; //0x0011
-    uint8_t texCount; //0x0012
-    uint8_t unk[9]; //0x0013
-    void *skelOffs; //0x001C
-    void *someOffset; //0x0020
-    void *someOtherOffset; //0x0024
-    void *someOtherOtherOffset; //0x0028
-    void *someOtherOtherOtherOffset; //0x002C
-}; //Size: 0x0030
+    char fourcc[4];                  // 0x0000
+    float version;                   // 0x0004
+    uint64_t reserved;               // 0x0008
+    uint8_t objectCount;             // 0x0010
+    uint8_t boneCount;               // 0x0011
+    uint8_t texCount;                // 0x0012
+    uint8_t unk[9];                  // 0x0013
+    void* skelOffs;                  // 0x001C
+    void* someOffset;                // 0x0020
+    void* someOtherOffset;           // 0x0024
+    void* someOtherOtherOffset;      // 0x0028
+    void* someOtherOtherOtherOffset; // 0x002C
+}; // Size: 0x0030
 
-class rModelSCM : public rModelHeader
-{
+class rModelSCM : public rModelHeader {
 public:
-    class rModelObjectHeaders objects[114]; //0x0030 size = header.objectCount
-    char pad_1590[5524]; //0x1590
-}; //Size: 0x2B24
+    class rModelObjectHeaders objects[114]; // 0x0030 size = header.objectCount
+    char pad_1590[5524];                    // 0x1590
+}; // Size: 0x2B24
 
-class rModelMeshHdr
-{
+class rModelMeshHdr {
 public:
-    uint16_t vertCount; //0x0000
-    uint16_t texInd; //0x0002
-    uint64_t reserved; //0x0004
-    Vector3 *vertsOffset; //0x000C
-    Vector3 *normalsOffs; //0x0010
-    class rModelUVData *uvsOffset; //0x0014
-    void *someOffset; //0x0018
-    void *someOtherOffset; //0x001C
-    class rModelSCMData *scmDataOffset; //0x0020
-    uint32_t idk00; //0x0024
-    uint32_t idk01; //0x0028
-    uint32_t idk02; //0x002C
-}; //Size: 0x0030
+    uint16_t vertCount;                 // 0x0000
+    uint16_t texInd;                    // 0x0002
+    uint64_t reserved;                  // 0x0004
+    Vector3* vertsOffset;               // 0x000C
+    Vector3* normalsOffs;               // 0x0010
+    class rModelUVData* uvsOffset;      // 0x0014
+    void* someOffset;                   // 0x0018
+    void* someOtherOffset;              // 0x001C
+    class rModelSCMData* scmDataOffset; // 0x0020
+    uint32_t idk00;                     // 0x0024
+    uint32_t idk01;                     // 0x0028
+    uint32_t idk02;                     // 0x002C
+}; // Size: 0x0030
 
-class rModelMesh : public rModelMeshHdr
-{
+class rModelMesh : public rModelMeshHdr {
 public:
-}; //Size: 0x0030
+}; // Size: 0x0030
 
-class Object : public rModelMesh
-{
+class Object : public rModelMesh {
 public:
-}; //Size: 0x0030
+}; // Size: 0x0030
 
-class rModelUVData
-{
+class rModelUVData {
 public:
-    int16_t u; //0x0000
-    int16_t t; //0x0002
-}; //Size: 0x0004
+    int16_t u; // 0x0000
+    int16_t t; // 0x0002
+}; // Size: 0x0004
 
-class rModelVertColor
-{
+class rModelVertColor {
 public:
-    uint8_t red; //0x0000
-    uint8_t green; //0x0001
-    uint8_t blue; //0x0002
-}; //Size: 0x0003
+    uint8_t red;   // 0x0000
+    uint8_t green; // 0x0001
+    uint8_t blue;  // 0x0002
+}; // Size: 0x0003
 
-class rModelSCMData : public rModelVertColor
-{
+class rModelSCMData : public rModelVertColor {
 public:
-    uint8_t triSkipFlag; //0x0003
-}; //Size: 0x0004
+    uint8_t triSkipFlag; // 0x0003
+}; // Size: 0x0004
 
-class rModelBone
-{
+class rModelBone {
 public:
-    Vector3 pos; //0x0000
-    float length; //0x000C
-    Vector3 unkVec; //0x0010
-    float unk; //0x001C
-}; //Size: 0x0020
+    Vector3 pos;    // 0x0000
+    float length;   // 0x000C
+    Vector3 unkVec; // 0x0010
+    float unk;      // 0x001C
+}; // Size: 0x0020
 
-class rModelSkeleton
-{
+class rModelSkeleton {
 public:
-    void *hierarchyOffset; //0x0000
-    void *indexOffset; //0x0004
-    void *objectRootsOffset; //0x0008
-    void *boneTransformOffset; //0x000C
-    uint32_t notBoneCount; //0x0010
-    uint8_t unk[12]; //0x0014
-    uint8_t hierarchy[116]; //0x0020 length == notBoneCount?
-    uint8_t indicies[116]; //0x0094
-    uint8_t objectRoots[116]; //0x0108
-    uint32_t reserved; //0x017C
-    class rModelBone N000010A8[115]; //0x0180
-}; //Size: 0x0FE0
+    void* hierarchyOffset;           // 0x0000
+    void* indexOffset;               // 0x0004
+    void* objectRootsOffset;         // 0x0008
+    void* boneTransformOffset;       // 0x000C
+    uint32_t notBoneCount;           // 0x0010
+    uint8_t unk[12];                 // 0x0014
+    uint8_t hierarchy[116];          // 0x0020 length == notBoneCount?
+    uint8_t indicies[116];           // 0x0094
+    uint8_t objectRoots[116];        // 0x0108
+    uint32_t reserved;               // 0x017C
+    class rModelBone N000010A8[115]; // 0x0180
+}; // Size: 0x0FE0
 
-class SomeRenderDataIdkAnonStruct
-{
+class SomeRenderDataIdkAnonStruct {
 public:
-    uint32_t some_int; //0x0000
-    uint32_t N00001DEE; //0x0004
-    uint32_t eeee_int; //0x0008
-    char pad_000C[4]; //0x000C
-    uint32_t some_table_lookup_int0; //0x0010
-    uint32_t some_table_lookup_int1; //0x0014
-    uint32_t n_int; //0x0018
-    char pad_001C[4]; //0x001C
-    uint32_t table_lookup_int2; //0x0020
-    uint32_t table_lookup_int3; //0x0024
-    uint32_t g_int; //0x0028
-    uint32_t N00001DF8; //0x002C
-    uint32_t some_int1; //0x0030
-    uint32_t N00001392_; //0x0034
-    uint32_t b_int; //0x0038
-    uint32_t N00001DFC; //0x003C
-    uint32_t some_obj_flags_bitwise_thing; //0x0040
-    uint32_t some_int_unk; //0x0044
-    char pad_0048[4]; //0x0048
-    uint32_t N00001E07; //0x004C
-}; //Size: 0x0050
+    uint32_t some_int;                     // 0x0000
+    uint32_t N00001DEE;                    // 0x0004
+    uint32_t eeee_int;                     // 0x0008
+    char pad_000C[4];                      // 0x000C
+    uint32_t some_table_lookup_int0;       // 0x0010
+    uint32_t some_table_lookup_int1;       // 0x0014
+    uint32_t n_int;                        // 0x0018
+    char pad_001C[4];                      // 0x001C
+    uint32_t table_lookup_int2;            // 0x0020
+    uint32_t table_lookup_int3;            // 0x0024
+    uint32_t g_int;                        // 0x0028
+    uint32_t N00001DF8;                    // 0x002C
+    uint32_t some_int1;                    // 0x0030
+    uint32_t N00001392_;                   // 0x0034
+    uint32_t b_int;                        // 0x0038
+    uint32_t N00001DFC;                    // 0x003C
+    uint32_t some_obj_flags_bitwise_thing; // 0x0040
+    uint32_t some_int_unk;                 // 0x0044
+    char pad_0048[4];                      // 0x0048
+    uint32_t N00001E07;                    // 0x004C
+}; // Size: 0x0050
 
-class SmdScratchBufferMaybe
-{
+class SmdScratchBufferMaybe {
 public:
-    char pad_0000[144]; //0x0000
-}; //Size: 0x0090
+    char pad_0000[144]; // 0x0000
+}; // Size: 0x0090
 
-class SomeModelData
-{
+class SomeModelData {
 public:
-    uint32_t fld0; //0x0000
-    uint8_t flag0; //0x0004
-    uint8_t flag1; //0x0005
-    uint8_t flag2; //0x0006
-    uint8_t flag3; //0x0007
-    uint32_t vert_accumulator; //0x0008
-    uint8_t mesh_count; //0x000C
-    uint8_t N000019A8; //0x000D
-    uint8_t some_skel_stuff; //0x000E
-    uint8_t N000019A9; //0x000F
-    uint32_t N00001380; //0x0010
-    uint32_t some_rendering_flags_again; //0x0014
-    class rModelObjectHeaders *r_model_obj_headers_ptr; //0x0018
-    class SomeRenderingData *ptr_has_some_rendering_data; //0x001C
-    Vector4 sphere; //0x0020
-    class cDrawSubUnk2 *cdrawsubs_array[6]; //0x0030
-    uint32_t N0000138B; //0x0048
-    uint32_t N0000138C; //0x004C
-    uint32_t some_table_lookup_int0; //0x0050
-    uint32_t some_table_lookup_int1; //0x0054
-    uint32_t some_table_lookup_int2; //0x0058
-    uint32_t some_table_lookup_int3; //0x005C
-    uint32_t some_int1; //0x0060
-    uint32_t N00001392; //0x0064
-    uint32_t some_obj_flags_bitwise_thing; //0x0068
-    uint32_t some_int_unk; //0x006C
-    uint32_t some_result_int; //0x0070
-    char pad_0074[12]; //0x0074
-    class SomeRenderDataIdkAnonStruct some_anon_struct0; //0x0080
-    class SomeRenderDataIdkAnonStruct some_anon_struct1; //0x00D0
-    uint32_t N000013C1; //0x0120
-    uint32_t N000013C2; //0x0124
-    uint32_t N000013C3; //0x0128
-    uint32_t N000013C4; //0x012C
-    Vector4 emissive; //0x0130
-    uint32_t N000013C9; //0x0140
-    uint32_t N000013CA; //0x0144
-    uint32_t N000013CB; //0x0148
-    uint32_t some_flag0; //0x014C
-    char pad_0150[16]; //0x0150
-    Vector4 emissive_copy; //0x0160
-    char pad_0170[12]; //0x0170
-    uint32_t some_flag1; //0x017C
-    char pad_0180[304]; //0x0180
-    class SmdScratchBufferMaybe some_scratch_buffer_maybe; //0x02B0
-}; //Size: 0x0340
+    uint32_t fld0;                                         // 0x0000
+    uint8_t flag0;                                         // 0x0004
+    uint8_t flag1;                                         // 0x0005
+    uint8_t flag2;                                         // 0x0006
+    uint8_t flag3;                                         // 0x0007
+    uint32_t vert_accumulator;                             // 0x0008
+    uint8_t mesh_count;                                    // 0x000C
+    uint8_t N000019A8;                                     // 0x000D
+    uint8_t some_skel_stuff;                               // 0x000E
+    uint8_t N000019A9;                                     // 0x000F
+    uint32_t N00001380;                                    // 0x0010
+    uint32_t some_rendering_flags_again;                   // 0x0014
+    class rModelObjectHeaders* r_model_obj_headers_ptr;    // 0x0018
+    class SomeRenderingData* ptr_has_some_rendering_data;  // 0x001C
+    Vector4 sphere;                                        // 0x0020
+    class cDrawSubUnk2* cdrawsubs_array[6];                // 0x0030
+    uint32_t N0000138B;                                    // 0x0048
+    uint32_t N0000138C;                                    // 0x004C
+    uint32_t some_table_lookup_int0;                       // 0x0050
+    uint32_t some_table_lookup_int1;                       // 0x0054
+    uint32_t some_table_lookup_int2;                       // 0x0058
+    uint32_t some_table_lookup_int3;                       // 0x005C
+    uint32_t some_int1;                                    // 0x0060
+    uint32_t N00001392;                                    // 0x0064
+    uint32_t some_obj_flags_bitwise_thing;                 // 0x0068
+    uint32_t some_int_unk;                                 // 0x006C
+    uint32_t some_result_int;                              // 0x0070
+    char pad_0074[12];                                     // 0x0074
+    class SomeRenderDataIdkAnonStruct some_anon_struct0;   // 0x0080
+    class SomeRenderDataIdkAnonStruct some_anon_struct1;   // 0x00D0
+    uint32_t N000013C1;                                    // 0x0120
+    uint32_t N000013C2;                                    // 0x0124
+    uint32_t N000013C3;                                    // 0x0128
+    uint32_t N000013C4;                                    // 0x012C
+    Vector4 emissive;                                      // 0x0130
+    uint32_t N000013C9;                                    // 0x0140
+    uint32_t N000013CA;                                    // 0x0144
+    uint32_t N000013CB;                                    // 0x0148
+    uint32_t some_flag0;                                   // 0x014C
+    char pad_0150[16];                                     // 0x0150
+    Vector4 emissive_copy;                                 // 0x0160
+    char pad_0170[12];                                     // 0x0170
+    uint32_t some_flag1;                                   // 0x017C
+    char pad_0180[304];                                    // 0x0180
+    class SmdScratchBufferMaybe some_scratch_buffer_maybe; // 0x02B0
+}; // Size: 0x0340
 
-class cDrawSubUnk2
-{
+class cDrawSubUnk2 {
 public:
-    uint32_t f0; //0x0000
-    class cDrawSubUnk2 *cdsu_next_ptr; //0x0004
-    uint32_t f8; //0x0008
-    uint32_t fc; //0x000C
-    uint32_t f10; //0x0010
-    class SomeTextureAlphaThing *some_tex_alpha_thing_ptr; //0x0014
-    uint32_t some_static_memory_stuff; //0x0018
-    uint32_t f1c; //0x001C
-    uint32_t field_20; //0x0020
-    Matrix4x4 *projection_maybe; //0x0024
-    uint32_t field_28; //0x0028
-    uint32_t field_2C; //0x002C
-}; //Size: 0x0030
+    uint32_t f0;                                           // 0x0000
+    class cDrawSubUnk2* cdsu_next_ptr;                     // 0x0004
+    uint32_t f8;                                           // 0x0008
+    uint32_t fc;                                           // 0x000C
+    uint32_t f10;                                          // 0x0010
+    class SomeTextureAlphaThing* some_tex_alpha_thing_ptr; // 0x0014
+    uint32_t some_static_memory_stuff;                     // 0x0018
+    uint32_t f1c;                                          // 0x001C
+    uint32_t field_20;                                     // 0x0020
+    Matrix4x4* projection_maybe;                           // 0x0024
+    uint32_t field_28;                                     // 0x0028
+    uint32_t field_2C;                                     // 0x002C
+}; // Size: 0x0030
 
-class SomeRenderingData
-{
+class SomeRenderingData {
 public:
-    uint32_t batches_maybe; //0x0000
-    uint32_t vert_count; //0x0004
-    uint32_t tex_ind; //0x0008
-    class rModelMeshHdr *model_mesh_hdr_ptr; //0x000C
-    uint32_t offset_0x10; //0x0010
-    uint32_t offset_0x14; //0x0014
-    uint32_t offset_0x18; //0x0018
-    uint32_t offset_0x1C; //0x001C
-    uint32_t offset_0x20; //0x0020
-    uint32_t offset_0x24; //0x0024
-    uint32_t offset_0x28; //0x0028
-    uint32_t offset_0x2C; //0x002C
-    uint8_t offset_0x30; //0x0030
-    char pad_0031[3]; //0x0031
-    uint32_t bone_count; //0x0034
-    Matrix4x4* world; //0x0038
-    char pad_003C[4]; //0x003C
-    class SomeRenderDataIdkAnonStruct N00001A0B; //0x0040
-    class SomeRenderDataIdkAnonStruct N00001A0C; //0x0090
-    uint32_t offset_0xE0; //0x00E0
-    uint32_t offset_0xE4; //0x00E4
-    uint32_t offset_0xE8; //0x00E8
-    uint32_t offset_0xEC; //0x00EC
-    void *anon_struct0; //0x00F0
-    void *anon_struct1; //0x00F4
-    Vector3 *verts_ptr0; //0x00F8
-    Vector3 *verts_ptr1; //0x00FC
-    Vector3 *normals_ptr; //0x0100
-    Vector3 *normals_ptr1; //0x0104
-    class rModelUVData *uvdata_ptr; //0x0108
-    class rModelUVData *uvdata_ptr1; //0x010C
-    class rModelBoneIndices *boindata_ptr0; //0x0110
-    class rModelBoneIndices *boindata_ptr1; //0x0114
-    class rModelWeightsData *weightdata_ptr0; //0x0118
-    class rModelWeightsData *weightdata_ptr1; //0x011C
-    class rModelSCMData *scmdata_ptr; //0x0120
-    class rModelSCMData *scmdata_ptr1; //0x0124
-    class RenderUVFudge *render_uv_fudge0; //0x0128
-    class RenderUVFudge *render_uv_fudge1; //0x012C
-    Vector3 *verts_ptr2; //0x0130
-}; //Size: 0x0134
+    uint32_t batches_maybe;                      // 0x0000
+    uint32_t vert_count;                         // 0x0004
+    uint32_t tex_ind;                            // 0x0008
+    class rModelMeshHdr* model_mesh_hdr_ptr;     // 0x000C
+    uint32_t offset_0x10;                        // 0x0010
+    uint32_t offset_0x14;                        // 0x0014
+    uint32_t offset_0x18;                        // 0x0018
+    uint32_t offset_0x1C;                        // 0x001C
+    uint32_t offset_0x20;                        // 0x0020
+    uint32_t offset_0x24;                        // 0x0024
+    uint32_t offset_0x28;                        // 0x0028
+    uint32_t offset_0x2C;                        // 0x002C
+    uint8_t offset_0x30;                         // 0x0030
+    char pad_0031[3];                            // 0x0031
+    uint32_t bone_count;                         // 0x0034
+    Matrix4x4* world;                            // 0x0038
+    char pad_003C[4];                            // 0x003C
+    class SomeRenderDataIdkAnonStruct N00001A0B; // 0x0040
+    class SomeRenderDataIdkAnonStruct N00001A0C; // 0x0090
+    uint32_t offset_0xE0;                        // 0x00E0
+    uint32_t offset_0xE4;                        // 0x00E4
+    uint32_t offset_0xE8;                        // 0x00E8
+    uint32_t offset_0xEC;                        // 0x00EC
+    void* anon_struct0;                          // 0x00F0
+    void* anon_struct1;                          // 0x00F4
+    Vector3* verts_ptr0;                         // 0x00F8
+    Vector3* verts_ptr1;                         // 0x00FC
+    Vector3* normals_ptr;                        // 0x0100
+    Vector3* normals_ptr1;                       // 0x0104
+    class rModelUVData* uvdata_ptr;              // 0x0108
+    class rModelUVData* uvdata_ptr1;             // 0x010C
+    class rModelBoneIndices* boindata_ptr0;      // 0x0110
+    class rModelBoneIndices* boindata_ptr1;      // 0x0114
+    class rModelWeightsData* weightdata_ptr0;    // 0x0118
+    class rModelWeightsData* weightdata_ptr1;    // 0x011C
+    class rModelSCMData* scmdata_ptr;            // 0x0120
+    class rModelSCMData* scmdata_ptr1;           // 0x0124
+    class RenderUVFudge* render_uv_fudge0;       // 0x0128
+    class RenderUVFudge* render_uv_fudge1;       // 0x012C
+    Vector3* verts_ptr2;                         // 0x0130
+}; // Size: 0x0134
 
-class RenderUVFudge
-{
+class RenderUVFudge {
 public:
-    int32_t some_uvx_fudge; //0x0000
-    int32_t some_uvy_fude; //0x0004
-    uint32_t N00001CC7; //0x0008
-    uint32_t N00001CC8; //0x000C
-    uint32_t N00001CC9; //0x0010
-    char pad_0014[4]; //0x0014
-}; //Size: 0x0018
+    int32_t some_uvx_fudge; // 0x0000
+    int32_t some_uvy_fude;  // 0x0004
+    uint32_t N00001CC7;     // 0x0008
+    uint32_t N00001CC8;     // 0x000C
+    uint32_t N00001CC9;     // 0x0010
+    char pad_0014[4];       // 0x0014
+}; // Size: 0x0018
 
-class cDrawSubUnk6
-{
+class cDrawSubUnk6 {
 public:
-    char pad_0000[260]; //0x0000
-}; //Size: 0x0104
+    char pad_0000[260]; // 0x0000
+}; // Size: 0x0104
 
-class cDrawSubUnk7
-{
+class cDrawSubUnk7 {
 public:
-    char pad_0000[4]; //0x0000
-}; //Size: 0x0004
+    char pad_0000[4]; // 0x0000
+}; // Size: 0x0004
 
-class IDraw
-{
+class IDraw {
 public:
-    void* N00001BDA[57]; //0x0000
-}; //Size: 0x00E4
+    void* N00001BDA[57]; // 0x0000
+}; // Size: 0x00E4
 
-class IDrawOperate
-{
+class IDrawOperate {
 public:
-    void* N00001F51[45]; //0x0000
-}; //Size: 0x00B4
+    void* N00001F51[45]; // 0x0000
+}; // Size: 0x00B4
 
-class N00002118
-{
+class N00002118 {
 public:
-    Matrix4x4 N00002119; //0x0000
-    char pad_0040[288]; //0x0040
-}; //Size: 0x0160
+    Matrix4x4 N00002119; // 0x0000
+    char pad_0040[288];  // 0x0040
+}; // Size: 0x0160
 
-class rModelWeightsData
-{
+class rModelWeightsData {
 public:
-    uint16_t bone_weights; //0x0000
-}; //Size: 0x0004
+    uint16_t bone_weights; // 0x0000
+}; // Size: 0x0004
 
-class SomeStackThing
-{
+class SomeStackThing {
 public:
-    class SomeRenderingData *p_some_rendering_data; //0x0000
-    Matrix4x4 *p_matrix; //0x0004
-    uint8_t some_uints0[4]; //0x0008
-    uint8_t some_uints1[4]; //0x000C
-    char pad_0010[4]; //0x0010
-    class N00001713 *p_c_light_mgr; //0x0014
-    char pad_0018[296]; //0x0018
-}; //Size: 0x0140
+    class SomeRenderingData* p_some_rendering_data; // 0x0000
+    Matrix4x4* p_matrix;                            // 0x0004
+    uint8_t some_uints0[4];                         // 0x0008
+    uint8_t some_uints1[4];                         // 0x000C
+    char pad_0010[4];                               // 0x0010
+    class N00001713* p_c_light_mgr;                 // 0x0014
+    char pad_0018[296];                             // 0x0018
+}; // Size: 0x0140
 
-class rModelBoneIndices
-{
+class rModelBoneIndices {
 public:
-    uint8_t bn_ind[4]; //0x0000
-}; //Size: 0x0004
+    uint8_t bn_ind[4]; // 0x0000
+}; // Size: 0x0004
 #pragma endregion
 
-
 struct IndexData {
-    std::int32_t  ref_count {};
+    std::int32_t ref_count{};
     std::uint32_t prim_count;
     std::uint32_t index_count;
     std::vector<uint16_t> ib;
@@ -1525,15 +827,15 @@ struct IndexData {
 IndexData make_index_buffer(SomeRenderingData* srd) {
     assert(srd->vert_count);
 #ifndef NDEBUG
-    //printf("make_index_buffer() vert_count:%d\n", srd->vert_count);
+    // printf("make_index_buffer() vert_count:%d\n", srd->vert_count);
 #endif // !NDEBUG
 
     IndexData result;
     result.prim_count = 0;
 
     std::uint16_t p1 = 0, p2 = 1;
-    bool  wnd = 1; // winding order
-    std::vector<uint16_t> indices; 
+    bool wnd = 1; // winding order
+    std::vector<uint16_t> indices;
     indices.reserve(srd->vert_count * 3);
 
     for (uint32_t i = 2; i < srd->vert_count; ++i) {
@@ -1543,14 +845,13 @@ IndexData make_index_buffer(SomeRenderingData* srd) {
             printf("Bad index detected: %d, %d, %d\n", p1, p2, p3);
         }
 
-        bool tri_skip {false};
+        bool tri_skip{false};
         if (srd->scmdata_ptr) { // static meshes
             tri_skip = srd->scmdata_ptr[p3].triSkipFlag;
             if (srd->weightdata_ptr0) {
                 tri_skip = ((srd->weightdata_ptr0[p3].bone_weights >> 0xF) & 1);
             }
-        }
-        else { // stored in bone weight for characters
+        } else { // stored in bone weight for characters
             tri_skip = ((srd->weightdata_ptr0[p3].bone_weights >> 0xF) & 1);
         }
         if (!tri_skip) {
@@ -1561,27 +862,26 @@ IndexData make_index_buffer(SomeRenderingData* srd) {
 
             Vector3 face_edge1 = v3 - v1;
             Vector3 face_edge2 = v2 - v1;
-            face_edge1 = glm::normalize(face_edge1);
-            face_edge2 = glm::normalize(face_edge2);
+            face_edge1         = glm::normalize(face_edge1);
+            face_edge2         = glm::normalize(face_edge2);
 
-            Vector3 z  = glm::cross(face_edge1, face_edge2);
-            z = glm::normalize(z);
+            Vector3 z = glm::cross(face_edge1, face_edge2);
+            z         = glm::normalize(z);
 
             Vector3 normal1 = srd->normals_ptr[p1];
             Vector3 normal2 = srd->normals_ptr[p2];
             Vector3 normal3 = srd->normals_ptr[p3];
-            Vector3 normal = glm::normalize(normal1 + normal2 + normal3);
+            Vector3 normal  = glm::normalize(normal1 + normal2 + normal3);
 
             // Add indices in the correct winding order
-            //wnd = glm::dot(normal, z) > 0.0f;
+            // wnd = glm::dot(normal, z) > 0.0f;
             // ratmix normals look inverted with code above for some reason
             wnd = glm::dot(normal, z) < 0.0f;
             if (wnd) {
                 indices.push_back(p1);
                 indices.push_back(p3);
                 indices.push_back(p2);
-            }
-            else {
+            } else {
                 indices.push_back(p1);
                 indices.push_back(p2);
                 indices.push_back(p3);
@@ -1595,16 +895,18 @@ IndexData make_index_buffer(SomeRenderingData* srd) {
     }
 
     auto num_indices = std::distance(indices.begin(), indices.end());
-    //srd->starting_index = num_indices;
+    // srd->starting_index = num_indices;
     result.index_count = num_indices;
-    result.ib = std::move(indices);
+    result.ib          = std::move(indices);
     return result;
 }
 
 void cdraw_set_render_data_hook(SomeRenderingData* srd) {
-    if (!srd) { return; }
+    if (!srd) {
+        return;
+    }
     assert(srd->vert_count);
-    //srd->starting_index = 0xDEADBEEF; // test
+    // srd->starting_index = 0xDEADBEEF; // test
 
 #if 0
     const size_t size = indices.size() * sizeof(WORD);
@@ -1612,7 +914,6 @@ void cdraw_set_render_data_hook(SomeRenderingData* srd) {
     memcpy(mem, indices.data(), size);
 #endif
 }
-
 
 static uintptr_t cdraw_set_render_data_struct_jmp = 0x0068BE10;
 // clang-format off
@@ -1631,32 +932,30 @@ static __declspec(naked) void cdraw_set_render_data_struct() {
 }
 // clang-format on
 
-
-struct RDrawSomethingStruct
-{
+struct RDrawSomethingStruct {
     DWORD verts_or_whatever;
-/*
-    uint8_t col_r0;
-    uint8_t col_g0;
-    uint8_t col_b0;
-    uint8_t col_a0;
-*/
+    /*
+        uint8_t col_r0;
+        uint8_t col_g0;
+        uint8_t col_b0;
+        uint8_t col_a0;
+    */
     uint8_t col_r1;
     uint8_t col_g1;
     uint8_t col_b1;
     uint8_t col_a1;
-    Matrix4x4 *p_some_matrix;
-    struct SomeRenderingData *srd;
+    Matrix4x4* p_some_matrix;
+    struct SomeRenderingData* srd;
     uint32_t some_flags;
 };
 
-size_t g_vertices_offset {0};
-size_t g_indices_offset {0};
+size_t g_vertices_offset{0};
+size_t g_indices_offset{0};
 
-enum EVertexBufferType{
+enum EVertexBufferType {
     ARTICULATED_MODELS = 1, // unused i think
-    GUI_QUADS = 2,
-    WORLD = 3,
+    GUI_QUADS          = 2,
+    WORLD              = 3,
 };
 
 struct MatrixIndices {
@@ -1669,26 +968,26 @@ static_assert(sizeof(MatrixIndices) == sizeof(DWORD));
 
 struct VertexDefDynamic {
     Vector3 pos;
-    Vector2 weight;
+    Vector3 weight;
     MatrixIndices mat_indices;
     Vector3 normal;
 
-    uint8_t diff_r; //0x0018
-    uint8_t diff_g; //0x0019
-    uint8_t diff_b; //0x001A
-    uint8_t diff_a; //0x001B
-    uint8_t spec_r; //0x001C
-    uint8_t spec_g; //0x001D
-    uint8_t spec_b; //0x001E
-    uint8_t spec_a; //0x001F
+    uint8_t diff_r; // 0x0018
+    uint8_t diff_g; // 0x0019
+    uint8_t diff_b; // 0x001A
+    uint8_t diff_a; // 0x001B
+    uint8_t spec_r; // 0x001C
+    uint8_t spec_g; // 0x001D
+    uint8_t spec_b; // 0x001E
+    uint8_t spec_a; // 0x001F
 
-    Vector2 uv0; //0x0020
+    Vector2 uv0; // 0x0020
 };
 
-//static_assert(sizeof(VertexDefDynamic) == sizeof(VertexDef));
-// TODO(): find where to stick this
-//static constexpr DWORD vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
-static constexpr DWORD vertex_format_dmc3_3d_ffp_skinning = D3DFVF_XYZB3 | D3DFVF_LASTBETA_UBYTE4  |  D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1;
+// static_assert(sizeof(VertexDefDynamic) == sizeof(VertexDef));
+//  TODO(): find where to stick this
+// static constexpr DWORD vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
+static constexpr DWORD vertex_format_dmc3_3d_ffp_skinning = D3DFVF_XYZB4 | D3DFVF_LASTBETA_UBYTE4 | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1;
 
 struct DIPData {
     std::uint32_t vertex_count_ours;
@@ -1696,15 +995,16 @@ struct DIPData {
     std::uint32_t index_count_ours;
     std::uint32_t base_vertex_index;
     std::uint32_t start_index;
-    Matrix4x4*    matrices {};
-    Matrix4x4*    world {};
+    Matrix4x4* matrices{};
+    Matrix4x4* world{};
     std::uint16_t bone_count;
-    //std::vector<std::uint16_t> index_buffer_ours;
-    //std::vector<VertexDef> vertex_buffer_ours;
+    std::uint16_t source_bone_count;
+    std::vector<uint8_t> palette_to_global;
+    // std::vector<std::uint16_t> index_buffer_ours;
+    // std::vector<VertexDef> vertex_buffer_ours;
 
-    //LPDIRECT3DVERTEXBUFFER9 p_vb = NULL;
-    //LPDIRECT3DINDEXBUFFER9  p_ib = NULL;
-
+    // LPDIRECT3DVERTEXBUFFER9 p_vb = NULL;
+    // LPDIRECT3DINDEXBUFFER9  p_ib = NULL;
 };
 
 #if 0
@@ -1765,8 +1065,6 @@ static void create_buffers(DIPData& dip, D3DPOOL pool = D3DPOOL_DEFAULT) {
 }
 #endif
 
-
-
 struct DynamicRenderBuffer {
     static const size_t round_to_multiple(size_t number, size_t multiple) {
         return (((number + multiple / 2) / multiple) * multiple);
@@ -1782,7 +1080,7 @@ struct DynamicRenderBuffer {
             }
             // create vb
             if (FAILED(pdevice->CreateVertexBuffer(m_vb_capacity,
-                       0, vertex_format_dmc3_3d_ffp_skinning, D3DPOOL_DEFAULT, &p_vb, NULL))) {
+                                                   0, vertex_format_dmc3_3d_ffp_skinning, D3DPOOL_DEFAULT, &p_vb, NULL))) {
                 assert("create_vb failed!");
                 return;
             }
@@ -1791,14 +1089,14 @@ struct DynamicRenderBuffer {
 
         assert(m_ib_cur_size < m_ib_capacity);
         if (m_create_flags & CREATE_FLAGS::INDEX_BUFFER) {
-            // release existing 
+            // release existing
             if (p_ib) {
                 p_ib->Release();
                 p_ib = nullptr;
             }
             // create ib
             if (FAILED(pdevice->CreateIndexBuffer(m_ib_capacity,
-                       0, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &p_ib, NULL))) {
+                                                  0, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &p_ib, NULL))) {
                 assert("create_ib failed!");
                 return;
             }
@@ -1807,9 +1105,9 @@ struct DynamicRenderBuffer {
     }
 
     void reset() {
-        m_vb_cur_size = 0;
-        m_ib_cur_size = 0;
-        m_is_dirty    = true;
+        m_vb_cur_size  = 0;
+        m_ib_cur_size  = 0;
+        m_is_dirty     = true;
         m_create_flags = CREATE_FLAGS::NONE;
     }
 
@@ -1832,7 +1130,7 @@ struct DynamicRenderBuffer {
         void* pindices;
         const size_t ibsize = inds.size() * sizeof(WORD);
         if (FAILED(p_ib->Lock(0, ibsize, (void**)&pindices, 0))) {
-            return ;
+            return;
         }
         memcpy(pindices, inds.data(), ibsize);
         p_ib->Unlock();
@@ -1883,45 +1181,78 @@ struct DynamicRenderBuffer {
     }
 
     enum CREATE_FLAGS {
-        NONE = 0,
+        NONE          = 0,
         VERTEX_BUFFER = 1 << 0,
-        INDEX_BUFFER = 1 << 1,
+        INDEX_BUFFER  = 1 << 1,
     };
     uint32_t m_create_flags = NONE;
 
     bool m_is_dirty = true;
 
     LPDIRECT3DVERTEXBUFFER9 p_vb = NULL;
-    LPDIRECT3DINDEXBUFFER9  p_ib = NULL;
+    LPDIRECT3DINDEXBUFFER9 p_ib  = NULL;
 
-    size_t m_vb_cur_size {0};
-    size_t m_ib_cur_size {0};
+    size_t m_vb_cur_size{0};
+    size_t m_ib_cur_size{0};
 
-    size_t m_vb_capacity {0};
-    size_t m_ib_capacity {0};
+    size_t m_vb_capacity{0};
+    size_t m_ib_capacity{0};
 };
 
-
-static DynamicRenderBuffer* g_dyn_ren_buf {nullptr};
+static DynamicRenderBuffer* g_dyn_ren_buf{nullptr};
 
 static std::map<size_t, IndexData> g_ib_map;
-static int g_current_obj {0};
-static int g_skipdraw {4};
+static int g_current_obj{-1};
+static int g_skipdraw{-1};
+
+static uint16_t get_ffp_palette_limit(IDirect3DDevice9* pdevice);
 
 std::vector<VertexDefDynamic> g_vertex_data_world;
 std::vector<WORD> g_index_data_world;
 
 // TODO() imgui remove
-bool g_skipdraw_static {false};
+bool g_skipdraw_static{false};
 
-int g_bcount { 24 };
-int g_bindex_0 {0};
-int g_bindex_1 {0};
-int g_bindex_2 {1};
-int g_bindex_3 {2};
+int g_bcount{24};
+int g_bindex_0{0};
+int g_bindex_1{0};
+int g_bindex_2{1};
+int g_bindex_3{2};
+
+static constexpr std::array<std::array<int, 4>, 6> g_bindex_presets{{
+    {{0, 0, 1, 2}},
+    {{0, 1, 2, 0}},
+    {{0, 1, 2, 2}},
+    {{2, 1, 3, 0}},
+    {{2, 1, 0, 3}},
+    {{3, 2, 1, 0}},
+}};
+static int g_bindex_preset_idx = 0;
+
+static void apply_bindex_preset(int preset_index) {
+    if (preset_index < 0 || preset_index >= (int)g_bindex_presets.size()) {
+        return;
+    }
+    g_bindex_preset_idx = preset_index;
+    const auto& p       = g_bindex_presets[(size_t)preset_index];
+    g_bindex_0          = p[0];
+    g_bindex_1          = p[1];
+    g_bindex_2          = p[2];
+    g_bindex_3          = p[3];
+}
+
+static void cycle_bindex_preset(int step) {
+    const int preset_count = (int)g_bindex_presets.size();
+    int next_idx           = g_bindex_preset_idx + step;
+    while (next_idx < 0) {
+        next_idx += preset_count;
+    }
+    next_idx %= preset_count;
+    apply_bindex_preset(next_idx);
+}
 
 static VertexDef* g_current_vertex_data_pointer = 0x0;
-static uintptr_t r_malloc_vertex_datas_jmp = 0x006E15AC;
+static uintptr_t r_malloc_vertex_datas_jmp      = 0x006E15AC;
 // clang-format off
 static __declspec(naked) void r_malloc_vertex_datas_detour() {
     __asm {
@@ -1938,15 +1269,19 @@ static __declspec(naked) void r_malloc_vertex_datas_detour() {
 // clang-format on
 
 static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
-    if(!rdss) { return; }
-    if(g_skipdraw_static) { return; }
-    //printf("|rdss->srd->vert_count=%d\n", rdss->srd->vert_count);
+    if (!rdss) {
+        return;
+    }
+    if (g_skipdraw_static) {
+        return;
+    }
+    // printf("|rdss->srd->vert_count=%d\n", rdss->srd->vert_count);
 
     typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
     static rPrepDrawDataSub6DF5A0 r_prep_draw_data_sub_6DF5A0 = (rPrepDrawDataSub6DF5A0)0x6DF5A0;
-    static int* some_graphic_struct_dword_252F490_ = (int*)0x0252F490;
-    ptrdiff_t start_offset = 0;
-    DWORD tri_strip_count = 0;
+    static int* some_graphic_struct_dword_252F490_            = (int*)0x0252F490;
+    ptrdiff_t start_offset                                    = 0;
+    DWORD tri_strip_count                                     = 0;
 
 #if 0
     for (size_t resb = 0; resb < rdss->srd->vert_count; resb = (resb + 1)) {
@@ -1974,13 +1309,13 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
     assert(vertex_offset < USHRT_MAX);
 
     for (size_t resb = 0; resb < rdss->srd->vert_count; resb = (resb + 1)) {
-        typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct* a2);
+        typedef int(__fastcall * cDrawVertexDataSetSub6DE480)(size_t vert_index, RDrawSomethingStruct * a2);
         static cDrawVertexDataSetSub6DE480 cDraw_vertex_data_set_sub_6DE480 = (cDrawVertexDataSetSub6DE480)0x6DE480;
         VertexDef svtx{}; // visual studio, bro, i know its not initialized
         g_current_vertex_data_pointer = &svtx;
-        auto& new_vert = g_vertex_data_world.emplace_back();
+        auto& new_vert                = g_vertex_data_world.emplace_back();
         cDraw_vertex_data_set_sub_6DE480(resb, rdss);
-        new_vert.pos = svtx.pos;
+        new_vert.pos    = svtx.pos;
         new_vert.normal = svtx.norm;
 
         new_vert.diff_a = svtx.diff_a;
@@ -1993,14 +1328,15 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
         new_vert.spec_b = svtx.spec_b;
 
         new_vert.mat_indices.indices = 0;
-        new_vert.weight.x = 0.0f;
-        new_vert.weight.y = 0.0f;
+        new_vert.weight.x            = 0.0f;
+        new_vert.weight.y            = 0.0f;
+        new_vert.weight.z            = 0.0f;
 
         new_vert.uv0 = svtx.uv0;
-        //new_vert.uv1 = svtx.uv1;
+        // new_vert.uv1 = svtx.uv1;
 
         g_current_vertex_data_pointer = 0;
-        //memcpy(&render_info->vertex_buffer_ours[resb], g_current_vertex_data_pointer, 0x38);
+        // memcpy(&render_info->vertex_buffer_ours[resb], g_current_vertex_data_pointer, 0x38);
     }
 
     IndexData* result{};
@@ -2017,26 +1353,26 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
 #endif
 
     IndexData ass = make_index_buffer(rdss->srd);
-    result = &ass;
+    result        = &ass;
     assert(result);
 
     render_info->index_count_ours     = result->index_count;
     render_info->primitive_count_ours = result->prim_count;
-    render_info->base_vertex_index    = vertex_offset;//g_index_data_world.size();
+    render_info->base_vertex_index    = vertex_offset; // g_index_data_world.size();
     render_info->start_index          = g_index_data_world.size();
 
-    //render_info->index_buffer_ours    = std::move(result.ib);
+    // render_info->index_buffer_ours    = std::move(result.ib);
     for (WORD index : result->ib) {
-        g_index_data_world.push_back(index/* + vertex_offset */);
+        g_index_data_world.push_back(index /* + vertex_offset */);
     }
-    render_info->vertex_count_ours    = rdss->srd->vert_count;
+    render_info->vertex_count_ours = rdss->srd->vert_count;
     result->ref_count -= 1;
-    
+
     g_dyn_ren_buf->check_and_flag_for_resize(
         render_info->vertex_count_ours,
         render_info->index_count_ours);
 
-    //create_buffers(*render_info);
+    // create_buffers(*render_info);
 
 #if 0
     g_dyn_ren_buf->check_and_flag_for_resize(
@@ -2072,7 +1408,6 @@ static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
         g_vertices_offset += (index_end - index);
         g_indices_offset += indices.size();
 #endif
-
 }
 
 static void r_render_chars_intercept(cDrawSub* cds, SomeRenderingData* srd0, RDrawSomethingStruct* rdss, SomeStackThing* stack) {
@@ -2084,15 +1419,15 @@ static void r_render_chars_intercept(cDrawSub* cds, SomeRenderingData* srd0, RDr
     }
     const uint32_t vert_count = srd0->vert_count;
 
-    typedef int (__cdecl *cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct *a1, int vert_index, SomeStackThing* a3);
+    typedef int(__cdecl * cDrawcDrawSubPrepVertsGuiAndCharacters)(RDrawSomethingStruct * a1, int vert_index, SomeStackThing* a3);
     cDrawcDrawSubPrepVertsGuiAndCharacters prep_verts_gui_and_characters = (cDrawcDrawSubPrepVertsGuiAndCharacters)0x006DD4A0;
 
     typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
     static rPrepDrawDataSub6DF5A0 r_prep_draw_data_sub_6DF5A0 = (rPrepDrawDataSub6DF5A0)0x6DF5A0;
-    static int* some_graphic_struct_dword_252F490_ = (int*)0x0252F490;
-    ptrdiff_t start_offset = 0;
-    DWORD tri_strip_count = 0;
-    uint8_t* g_render_ui_flag_byte_252F48C = (uint8_t*)0x0252F48C;
+    static int* some_graphic_struct_dword_252F490_            = (int*)0x0252F490;
+    ptrdiff_t start_offset                                    = 0;
+    DWORD tri_strip_count                                     = 0;
+    uint8_t* g_render_ui_flag_byte_252F48C                    = (uint8_t*)0x0252F48C;
 
     if (*g_render_ui_flag_byte_252F48C) {
 
@@ -2104,7 +1439,7 @@ static void r_render_chars_intercept(cDrawSub* cds, SomeRenderingData* srd0, RDr
             } else {
                 if (!tri_strip_count) {
                     start_offset = rdss->verts_or_whatever;
-                    //printf("|start_offset=%d\n", start_offset);
+                    // printf("|start_offset=%d\n", start_offset);
                 }
                 ++tri_strip_count;
             }
@@ -2114,114 +1449,205 @@ static void r_render_chars_intercept(cDrawSub* cds, SomeRenderingData* srd0, RDr
         return;
     }
 
-    uint8_t value    = EVertexBufferType::ARTICULATED_MODELS;
-    DIPData* render_info;
-        render_info = new DIPData;
-        size_t vertex_offset = g_vertex_data_world.size();
-        assert(vertex_offset < USHRT_MAX);
-        //render_info->vertex_buffer_ours.reserve(vert_count);
+    uint8_t value                    = EVertexBufferType::ARTICULATED_MODELS;
+    static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
+    static IDirect3DDevice9* pdevice = device_ptr->device;
 
-        for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
-            //g_current_vertex_data_pointer = &render_info->vertex_buffer_ours.emplace_back();
-            VertexDef cpuvtx{};
-            g_current_vertex_data_pointer = &cpuvtx;
-            prep_verts_gui_and_characters(rdss, vert, stack);
-            VertexDefDynamic& dvtx = g_vertex_data_world.emplace_back();
+    std::vector<VertexDefDynamic> local_vertices;
+    local_vertices.reserve(vert_count);
 
-            dvtx.pos  = srd0->verts_ptr0[vert];
-            dvtx.normal = srd0->normals_ptr[vert];
+    for (size_t vert = 0; vert < vert_count; vert = vert + 1) {
+        VertexDef cpuvtx{};
+        g_current_vertex_data_pointer = &cpuvtx;
+        prep_verts_gui_and_characters(rdss, vert, stack);
+        VertexDefDynamic& dvtx = local_vertices.emplace_back();
 
-            dvtx.mat_indices.index[g_bindex_0] = srd0->boindata_ptr0[vert].bn_ind[2] >> 2;
-            dvtx.mat_indices.index[g_bindex_1] = srd0->boindata_ptr0[vert].bn_ind[1] >> 2;
-            dvtx.mat_indices.index[g_bindex_2] = srd0->boindata_ptr0[vert].bn_ind[3] >> 2;
-            dvtx.mat_indices.index[g_bindex_3] = srd0->boindata_ptr0[vert].bn_ind[0] >> 2;
+        dvtx.pos    = srd0->verts_ptr0[vert];
+        dvtx.normal = srd0->normals_ptr[vert];
 
-            WORD weight_packed = srd0->weightdata_ptr0[vert].bone_weights;
-            //Vector3 weight{};
-            const float w1 = ((float)((weight_packed >> 0) & 0x1F)   / 31.0f);
-            const float w2 = ((float)((weight_packed >> 5) & 0x1F)   / 31.0f);
-            const float w3 = ((float)((weight_packed >> 10) & 0x1F)  / 31.0f);
-            dvtx.weight.x = w1;
-            dvtx.weight.y = w2;
-            //printf("w1: %f, w2: %f, w3: %f\n", w1, w2, w3);
-            assert( (w1 + w2 + w3) <= 1.0f);
+        auto clamp_bone_index = [cds](uint8_t idx) -> uint8_t {
+            return (idx < cds->bone_count) ? idx : 0;
+        };
+        const uint8_t decoded_bones[4] = {
+            clamp_bone_index(srd0->boindata_ptr0[vert].bn_ind[2] >> 2),
+            clamp_bone_index(srd0->boindata_ptr0[vert].bn_ind[1] >> 2),
+            clamp_bone_index(srd0->boindata_ptr0[vert].bn_ind[3] >> 2),
+            clamp_bone_index(srd0->boindata_ptr0[vert].bn_ind[0] >> 2),
+        };
 
-#if 0
-            weight.x = dvtx.weight.x;
-            weight.y = dvtx.weight.y;
-            weight.z = 1.0f - (weight.x + weight.y);
-#endif
+        dvtx.mat_indices.index[g_bindex_0] = decoded_bones[0];
+        dvtx.mat_indices.index[g_bindex_1] = decoded_bones[1];
+        dvtx.mat_indices.index[g_bindex_2] = decoded_bones[2];
+        dvtx.mat_indices.index[g_bindex_3] = decoded_bones[3];
 
-            dvtx.diff_r = cpuvtx.diff_r;
-            dvtx.diff_g = cpuvtx.diff_g;
-            dvtx.diff_b = cpuvtx.diff_b;
-            dvtx.diff_a = cpuvtx.diff_a;
-
-            dvtx.spec_r = cpuvtx.spec_r;
-            dvtx.spec_g = cpuvtx.spec_g;
-            dvtx.spec_b = cpuvtx.spec_b;
-            dvtx.spec_a = cpuvtx.spec_a;
-
-            dvtx.uv0 = cpuvtx.uv0;
-            //dvtx.uv1 = Vector2(0.0f);
-
-            //memcpy(g_current_vertex_data_pointer, &dvtx, sizeof(VertexDefDynamic));
-
-            //g_current_vertex_data_pointer->norm = srd0->normals_ptr[vert];
-            g_current_vertex_data_pointer = 0;
-            //memcpy(&render_info->vertex_buffer_ours[vert], g_current_vertex_data_pointer, 0x38);
+        const bool writes_index3 =
+            (g_bindex_0 == 3) || (g_bindex_1 == 3) || (g_bindex_2 == 3) || (g_bindex_3 == 3);
+        if (!writes_index3) {
+            dvtx.mat_indices.index[3] = decoded_bones[0];
         }
 
-        IndexData* result {};
-        size_t hash      = (size_t)srd0;//std::hash<uintptr_t>()((uintptr_t)srd0->vert_count + (uintptr_t)srd0->tex_ind + (uintptr_t)srd0->model_mesh_hdr_ptr);
-        if (auto& it = g_ib_map.find(hash); it != g_ib_map.end()) {
-            result = &it->second;
-            result->ref_count -= 1;
-        }
-        else {
-            IndexData idata = make_index_buffer(srd0);
-            auto& ib_map_entry = g_ib_map.emplace(hash, std::move(idata));
-            result = &ib_map_entry.first->second;
-        }
-        assert(result);
+        WORD weight_packed = srd0->weightdata_ptr0[vert].bone_weights;
+        const float w1     = ((float)((weight_packed >> 0) & 0x1F) / 31.0f);
+        const float w2     = ((float)((weight_packed >> 5) & 0x1F) / 31.0f);
+        const float w3     = ((float)((weight_packed >> 10) & 0x1F) / 31.0f);
+        dvtx.weight.x      = w1;
+        dvtx.weight.y      = w2;
+        dvtx.weight.z      = w3;
+        assert((w1 + w2 + w3) <= 1.0f);
 
+        dvtx.diff_r = cpuvtx.diff_r;
+        dvtx.diff_g = cpuvtx.diff_g;
+        dvtx.diff_b = cpuvtx.diff_b;
+        dvtx.diff_a = cpuvtx.diff_a;
 
-        render_info->bone_count = cds->bone_count;
-        render_info->world = &cds->obj_transforms_matrices_ptr->world_maybe;
-        render_info->matrices = stack->p_matrix;
-        render_info->index_count_ours     = result->index_count;
-        render_info->primitive_count_ours = result->prim_count;
-        render_info->base_vertex_index    = vertex_offset; // g_index_data_world.size();
-        render_info->start_index          = g_index_data_world.size();
-        //render_info->index_buffer_ours    = std::move(result.ib);
-        for (WORD index : result->ib) {
-            WORD final_index = index;// + vertex_offset;
-            assert(final_index < g_vertex_data_world.size());
-            g_index_data_world.push_back(final_index);
-        }
-        render_info->vertex_count_ours    = srd0->vert_count;
+        dvtx.spec_r = cpuvtx.spec_r;
+        dvtx.spec_g = cpuvtx.spec_g;
+        dvtx.spec_b = cpuvtx.spec_b;
+        dvtx.spec_a = cpuvtx.spec_a;
+
+        dvtx.uv0                      = cpuvtx.uv0;
+        g_current_vertex_data_pointer = 0;
+    }
+
+    IndexData* result{};
+    size_t hash = (size_t)srd0; // std::hash<uintptr_t>()((uintptr_t)srd0->vert_count + (uintptr_t)srd0->tex_ind + (uintptr_t)srd0->model_mesh_hdr_ptr);
+    if (auto& it = g_ib_map.find(hash); it != g_ib_map.end()) {
+        result = &it->second;
         result->ref_count -= 1;
+    } else {
+        IndexData idata    = make_index_buffer(srd0);
+        auto& ib_map_entry = g_ib_map.emplace(hash, std::move(idata));
+        result             = &ib_map_entry.first->second;
+    }
+    assert(result);
 
-    g_dyn_ren_buf->check_and_flag_for_resize(
-        render_info->vertex_count_ours,
-        render_info->index_count_ours);
+    const uint16_t palette_limit = get_ffp_palette_limit(pdevice);
+    if (result->ib.size() % 3 != 0) {
+        result->ref_count -= 1;
+        return;
+    }
 
-    //create_buffers(*render_info);
-#if 0
-    g_dyn_ren_buf->check_and_flag_for_resize(
-        render_info->vertex_buffer_ours.size(),
-        render_info->index_buffer_ours.size());
-#endif
+    std::vector<std::array<WORD, 3>> current_batch;
+    current_batch.reserve(result->ib.size() / 3);
+    bool batch_bones[256]{};
+    uint16_t batch_unique_bones = 0;
 
-#if 0
-    g_dip_map.emplace(hash, render_info);
-    return;
-#endif
+    auto add_triangle_bones = [&](const std::array<WORD, 3>& tri, bool dry_run) {
+        bool tri_bones[256]{};
+        uint16_t additional = 0;
+        for (WORD idx : tri) {
+            const VertexDefDynamic& v = local_vertices[idx];
+            const uint8_t bones[4]    = {
+                v.mat_indices.index[0],
+                v.mat_indices.index[1],
+                v.mat_indices.index[2],
+                v.mat_indices.index[3],
+            };
+            for (uint8_t b : bones) {
+                if (!tri_bones[b]) {
+                    tri_bones[b] = true;
+                    if (!batch_bones[b]) {
+                        ++additional;
+                    }
+                }
+            }
+        }
+        if (dry_run) {
+            return additional;
+        }
+        for (size_t b = 0; b < 256; ++b) {
+            if (tri_bones[b] && !batch_bones[b]) {
+                batch_bones[b] = true;
+                ++batch_unique_bones;
+            }
+        }
+        return additional;
+    };
 
-    g_current_obj += 1;
-    r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
+    auto emit_batch = [&]() {
+        if (current_batch.empty()) {
+            return;
+        }
 
-    //r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
+        std::vector<uint8_t> palette;
+        palette.reserve(batch_unique_bones);
+        uint8_t remap_table[256];
+        memset(remap_table, 0xFF, sizeof(remap_table));
+        for (size_t b = 0; b < 256; ++b) {
+            if (batch_bones[b]) {
+                remap_table[b] = (uint8_t)palette.size();
+                palette.push_back((uint8_t)b);
+            }
+        }
+
+        std::unordered_map<WORD, WORD> vertex_remap;
+        std::vector<WORD> batch_indices;
+        batch_indices.reserve(current_batch.size() * 3);
+        const size_t batch_vertex_offset = g_vertex_data_world.size();
+
+        for (const auto& tri : current_batch) {
+            for (WORD src_idx : tri) {
+                auto it      = vertex_remap.find(src_idx);
+                WORD dst_idx = 0;
+                if (it == vertex_remap.end()) {
+                    VertexDefDynamic v     = local_vertices[src_idx];
+                    v.mat_indices.index[0] = remap_table[v.mat_indices.index[0]];
+                    v.mat_indices.index[1] = remap_table[v.mat_indices.index[1]];
+                    v.mat_indices.index[2] = remap_table[v.mat_indices.index[2]];
+                    v.mat_indices.index[3] = remap_table[v.mat_indices.index[3]];
+                    dst_idx                = (WORD)vertex_remap.size();
+                    g_vertex_data_world.push_back(v);
+                    vertex_remap.emplace(src_idx, dst_idx);
+                } else {
+                    dst_idx = it->second;
+                }
+                batch_indices.push_back(dst_idx);
+            }
+        }
+
+        DIPData* render_info              = new DIPData;
+        render_info->source_bone_count    = cds->bone_count;
+        render_info->bone_count           = (uint16_t)palette.size();
+        render_info->palette_to_global    = std::move(palette);
+        render_info->world                = &cds->obj_transforms_matrices_ptr->world_maybe;
+        render_info->matrices             = stack->p_matrix;
+        render_info->vertex_count_ours    = (uint32_t)vertex_remap.size();
+        render_info->index_count_ours     = (uint32_t)batch_indices.size();
+        render_info->primitive_count_ours = render_info->index_count_ours / 3;
+        render_info->base_vertex_index    = (uint32_t)batch_vertex_offset;
+        render_info->start_index          = (uint32_t)g_index_data_world.size();
+
+        g_index_data_world.insert(g_index_data_world.end(), batch_indices.begin(), batch_indices.end());
+
+        g_dyn_ren_buf->check_and_flag_for_resize(
+            render_info->vertex_count_ours,
+            render_info->index_count_ours);
+
+        g_current_obj += 1;
+        r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, g_vertices_offset | (value << 24), (int)render_info);
+
+        current_batch.clear();
+        memset(batch_bones, 0, sizeof(batch_bones));
+        batch_unique_bones = 0;
+    };
+
+    for (size_t i = 0; i < result->ib.size(); i += 3) {
+        std::array<WORD, 3> tri = {
+            result->ib[i + 0],
+            result->ib[i + 1],
+            result->ib[i + 2],
+        };
+        const uint16_t extra = add_triangle_bones(tri, true);
+        if (!current_batch.empty() && (batch_unique_bones + extra) > palette_limit) {
+            emit_batch();
+        }
+        add_triangle_bones(tri, false);
+        current_batch.push_back(tri);
+    }
+    emit_batch();
+    result->ref_count -= 1;
+
+    // r_prep_draw_data_sub_6DF5A0(*some_graphic_struct_dword_252F490_, start_offset, tri_strip_count);
 }
 
 static uintptr_t r_render_chars_jmp = 0x006DD43B;
@@ -2269,9 +1695,9 @@ static __declspec(naked) void r_render_world_detour() {
 // clang-format on
 
 static void r_reset_rendering_globals() {
-    g_indices_offset           = 0;
-    g_vertices_offset          = 0;
-    g_current_obj = 0;
+    g_indices_offset  = 0;
+    g_vertices_offset = 0;
+    g_current_obj     = 0;
 #if 0
     g_bindex_0 = g_combinations[g_iter][0];
     g_bindex_1 = g_combinations[g_iter][1];
@@ -2288,8 +1714,7 @@ static void r_reset_rendering_globals() {
         it->second.ref_count += 1;
         if (it->second.ref_count > 32) {
             it = g_ib_map.erase(it);
-        }
-        else {
+        } else {
             ++it;
         }
     }
@@ -2323,19 +1748,130 @@ static bool IsMatrixZero(const D3DMATRIX& mat) {
     return true;
 }
 
+static uint16_t get_ffp_palette_limit(IDirect3DDevice9* pdevice) {
+    static uint16_t cached_limit = 0;
+    if (cached_limit != 0) {
+        return cached_limit;
+    }
+
+    cached_limit = 8;
+    if (!pdevice) {
+        return cached_limit;
+    }
+
+    D3DCAPS9 caps{};
+    if (SUCCEEDED(pdevice->GetDeviceCaps(&caps))) {
+        const uint32_t from_caps = caps.MaxVertexBlendMatrixIndex;
+        if (from_caps > 0 && from_caps <= 255) {
+            cached_limit = (uint16_t)from_caps;
+        }
+    }
+    return cached_limit;
+}
+
+static bool g_skinning_validator_enabled = true;
+
+static void validate_ffp_skinning_draw(IDirect3DDevice9* pdevice, const DIPData* dd) {
+    if (!g_skinning_validator_enabled || !pdevice || !dd) {
+        return;
+    }
+
+    static bool caps_cached = false;
+    static D3DCAPS9 caps{};
+    if (!caps_cached) {
+        pdevice->GetDeviceCaps(&caps);
+        caps_cached = true;
+    }
+
+    static uint32_t draw_counter = 0;
+    ++draw_counter;
+
+    const size_t start = dd->start_index;
+    const size_t end   = start + (size_t)dd->index_count_ours;
+    if (end > g_index_data_world.size()) {
+        fprintf(stderr,
+                "[ffp-skin-validate] draw=%u bad index range start=%zu end=%zu ib_size=%zu\n",
+                draw_counter,
+                start,
+                end,
+                g_index_data_world.size());
+        return;
+    }
+
+    bool used_bones[256]{};
+    uint32_t unique_bones      = 0;
+    uint32_t out_of_range_refs = 0;
+
+    const uint8_t max_allowed_by_draw = dd->bone_count > 0 ? (uint8_t)(dd->bone_count - 1) : 0;
+    const uint8_t max_allowed_by_caps = caps.MaxVertexBlendMatrixIndex < 255 ? (uint8_t)caps.MaxVertexBlendMatrixIndex : 255;
+    const uint8_t max_allowed         = max_allowed_by_draw < max_allowed_by_caps ? max_allowed_by_draw : max_allowed_by_caps;
+
+    for (size_t i = start; i < end; ++i) {
+        const size_t vertex_index = (size_t)dd->base_vertex_index + (size_t)g_index_data_world[i];
+        if (vertex_index >= g_vertex_data_world.size()) {
+            fprintf(stderr,
+                    "[ffp-skin-validate] draw=%u vertex OOB: base=%u idx=%u final=%zu vb_size=%zu\n",
+                    draw_counter,
+                    (unsigned)dd->base_vertex_index,
+                    (unsigned)g_index_data_world[i],
+                    vertex_index,
+                    g_vertex_data_world.size());
+            return;
+        }
+
+        const VertexDefDynamic& v     = g_vertex_data_world[vertex_index];
+        const uint8_t bone_indices[4] = {
+            v.mat_indices.index[0],
+            v.mat_indices.index[1],
+            v.mat_indices.index[2],
+            v.mat_indices.index[3],
+        };
+
+        for (uint8_t bi : bone_indices) {
+            if (!used_bones[bi]) {
+                used_bones[bi] = true;
+                ++unique_bones;
+            }
+            if (bi > max_allowed) {
+                ++out_of_range_refs;
+            }
+        }
+    }
+
+    if (out_of_range_refs > 0) {
+        fprintf(stderr,
+                "[ffp-skin-validate] draw=%u out_of_range_refs=%u unique_bones=%u max_allowed=%u draw_bones=%u cap_idx=%u\n",
+                draw_counter,
+                out_of_range_refs,
+                unique_bones,
+                (unsigned)max_allowed,
+                (unsigned)dd->bone_count,
+                (unsigned)caps.MaxVertexBlendMatrixIndex);
+    } else if ((draw_counter % 120) == 0) {
+        fprintf(stderr,
+                "[ffp-skin-validate] draw=%u ok unique_bones=%u draw_bones=%u cap_idx=%u\n",
+                draw_counter,
+                unique_bones,
+                (unsigned)dd->bone_count,
+                (unsigned)caps.MaxVertexBlendMatrixIndex);
+    }
+}
+
 std::unique_ptr<FunctionHook> g_d3d_draw_primitive_sub_6E1C00_hook;
 static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int primitve_count, char a3) {
-    if(!g_d3d_draw_primitive_sub_6E1C00_hook) {return;}
+    if (!g_d3d_draw_primitive_sub_6E1C00_hook) {
+        return;
+    }
 
     static D3DDevicePtr* device_ptr  = (D3DDevicePtr*)0x0252F374;
     static IDirect3DDevice9* pdevice = device_ptr->device;
 
-    uint8_t  type = (vertexCount >> 24) & 0xFF;
+    uint8_t type        = (vertexCount >> 24) & 0xFF;
     uint32_t vert_count = vertexCount & 0x00FFFFFF;
     if (type == EVertexBufferType::WORLD) {
 
         DIPData* dd = (DIPData*)primitve_count;
-        //goto earlie;
+        // goto earlie;
 
         // upload data to vb & ib
         g_dyn_ren_buf->re_create_buffers(pdevice);
@@ -2349,7 +1885,7 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         pdevice->SetFVF(vertex_format_dmc3_3d_ffp_skinning);
         pdevice->SetIndices(g_dyn_ren_buf->p_ib);
 
-        //auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, dd->base_index, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
+        // auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, dd->base_index, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
         HRESULT hr = pdevice->DrawIndexedPrimitive(
             D3DPT_TRIANGLELIST,
             dd->base_vertex_index,   // BaseVertexIndex
@@ -2375,10 +1911,9 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         }
 #endif
 
-        earlie:
+    earlie:
         delete dd;
-    }
-    else if (type == EVertexBufferType::ARTICULATED_MODELS) {
+    } else if (type == EVertexBufferType::ARTICULATED_MODELS) {
 
         DIPData* dd = (DIPData*)primitve_count;
 
@@ -2405,16 +1940,14 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         UINT base_vertex_index = min_index;
 #endif
 
-
-
         Matrix4x4 world;
         Matrix4x4* ass = dd->matrices;
         if (dd->world) {
             world = *dd->world;
-            //pdevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&woerld);
+            // pdevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&woerld);
 
-            //world = glm::transpose(world);
-            //pdevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&world);
+            // world = glm::transpose(world);
+            // pdevice->SetTransform(D3DTS_WORLD, (D3DMATRIX*)&world);
         }
 
         // upload data to vb & ib
@@ -2423,13 +1956,19 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
 
         uint16_t bones = dd->bone_count;
 
-        printf("bones=%d\n", bones);
+        // printf("bones=%d\n", bones);
 
         for (uint16_t i = 0; i < bones; ++i) {
-            D3DMATRIX& mat = *(D3DMATRIX*)&ass[i];
-            if(IsMatrixZero(mat) == false) {
-                pdevice->SetTransform(D3DTS_WORLDMATRIX(i), &mat);
+            uint16_t src_bone = i;
+            if (!dd->palette_to_global.empty()) {
+                assert(i < dd->palette_to_global.size());
+                src_bone = dd->palette_to_global[i];
             }
+            if (src_bone >= dd->source_bone_count) {
+                src_bone = 0;
+            }
+            D3DMATRIX& mat = *(D3DMATRIX*)&ass[src_bone];
+            pdevice->SetTransform(D3DTS_WORLDMATRIX(i), &mat);
         }
 
 #if 0
@@ -2450,13 +1989,14 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
 
         pdevice->SetRenderState(D3DRS_VERTEXBLEND, D3DVBF_0WEIGHTS);
         pdevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, TRUE);
+        validate_ffp_skinning_draw(pdevice, dd);
 
         // draw
         pdevice->SetStreamSource(0, g_dyn_ren_buf->p_vb, 0, sizeof(VertexDefDynamic));
         pdevice->SetFVF(vertex_format_dmc3_3d_ffp_skinning);
         pdevice->SetIndices(g_dyn_ren_buf->p_ib);
 
-        //auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, dd->base_index, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
+        // auto hr = pdevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, dd->base_index, dd->vertex_count_ours, dd->base_index, dd->primitive_count_ours);
         HRESULT hr = pdevice->DrawIndexedPrimitive(
             D3DPT_TRIANGLELIST,
             dd->base_vertex_index,   // BaseVertexIndex
@@ -2475,10 +2015,9 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
         pdevice->SetRenderState(D3DRS_INDEXEDVERTEXBLENDENABLE, FALSE);
 #endif
 
-        early_out:
+    early_out:
         delete dd;
-    }
-    else {
+    } else {
         g_d3d_draw_primitive_sub_6E1C00_hook->get_original<decltype(d3d_draw_primitive_sub_6E1C00)>()(vertexCount, primitve_count, a3);
     }
 }
@@ -2486,9 +2025,9 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
 static void cDraw_write_bone_count(cDrawSub* cds) {
     uint16_t bone_count = cds->bone_count;
     if (cds->modnrender_data_ptr) {
-        if(cds->modnrender_data_ptr->ptr_has_some_rendering_data) {
+        if (cds->modnrender_data_ptr->ptr_has_some_rendering_data) {
             cds->modnrender_data_ptr->ptr_has_some_rendering_data->bone_count = bone_count;
-            cds->modnrender_data_ptr->ptr_has_some_rendering_data->world = &cds->obj_transforms_matrices_ptr->world_maybe;
+            cds->modnrender_data_ptr->ptr_has_some_rendering_data->world      = &cds->obj_transforms_matrices_ptr->world_maybe;
         }
     }
 }
@@ -2499,16 +2038,16 @@ std::optional<std::string> RendererReplace::on_initialize() {
     if (init) {
         return Mod::on_initialize();
     }
-    init = true;
+    init       = true;
     g_rreplace = this;
 
     g_vertex_data_world.reserve(128_MiB / sizeof(VertexDef));
-    g_index_data_world.reserve (128_MiB / sizeof(WORD));
+    g_index_data_world.reserve(128_MiB / sizeof(WORD));
 
     g_dyn_ren_buf = new DynamicRenderBuffer();
 
-    //g_index_buffer_backing_area = malloc(INDEX_BUFFER_SIZE);
-    //utility::arena_init(&g_index_buffer, g_index_buffer_backing_area, INDEX_BUFFER_SIZE);
+    // g_index_buffer_backing_area = malloc(INDEX_BUFFER_SIZE);
+    // utility::arena_init(&g_index_buffer, g_index_buffer_backing_area, INDEX_BUFFER_SIZE);
 
 #if 0
     m_cdraw_set_render_data_hook = std::make_unique<FunctionHook>(0x0068BE0A, &cdraw_set_render_data_struct);
@@ -2591,11 +2130,11 @@ std::optional<std::string> RendererReplace::on_initialize() {
 
     // vb update
     m_d3d_create_vb_and_lock_sub_006E1ADF = std::make_unique<FunctionHook>(0x006E1ADF, &d3d_create_vb_and_lock);
-    #if 1
+#if 1
     if (!m_d3d_create_vb_and_lock_sub_006E1ADF->create()) {
         return "Failed to hook m_d3d_init_hook_sub_408DE0";
     }
-    #endif
+#endif
 
     // vb unlock
     m_d3d_unlock_vb_006E1B59 = std::make_unique<FunctionHook>(0x006E1B59, &d3d_unlock_buffs);
@@ -2608,7 +2147,7 @@ std::optional<std::string> RendererReplace::on_initialize() {
     if (!m_d3d_draw_primitive_006E1C5B->create()) {
         return "Failed to hook m_d3d_draw_primitive_006E1C5B";
     }
-    #endif
+#endif
     return Mod::on_initialize();
 }
 
@@ -2641,16 +2180,45 @@ void RendererReplace::on_draw_ui() {
     ImGui::Text("result: %f, %f, %f", result.x * w2, result.y * w2, result.z * w2);
 #endif
 
+    if (ImGui::IsKeyPressed(VK_F8)) {
+        cycle_bindex_preset(+1);
+    }
+
+    if (ImGui::Button("Cycle bindex preset (F8)")) {
+        cycle_bindex_preset(+1);
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Prev preset")) {
+        cycle_bindex_preset(-1);
+    }
+
+    const auto& active_preset = g_bindex_presets[(size_t)g_bindex_preset_idx];
+    ImGui::Text("Preset %d/%d: [%d, %d, %d, %d]",
+                g_bindex_preset_idx + 1,
+                (int)g_bindex_presets.size(),
+                active_preset[0],
+                active_preset[1],
+                active_preset[2],
+                active_preset[3]);
+
     ImGui::InputInt("g_bindex_0", &g_bindex_0);
     ImGui::InputInt("g_bindex_1", &g_bindex_1);
     ImGui::InputInt("g_bindex_2", &g_bindex_2);
     ImGui::InputInt("g_bindex_3", &g_bindex_3);
 
-    ImGui::InputInt("skip draw dynamic", &g_skipdraw );
+    for (int i = 0; i < (int)g_bindex_presets.size(); ++i) {
+        const auto& p = g_bindex_presets[(size_t)i];
+        if (g_bindex_0 == p[0] && g_bindex_1 == p[1] && g_bindex_2 == p[2] && g_bindex_3 == p[3]) {
+            g_bindex_preset_idx = i;
+            break;
+        }
+    }
+
+    ImGui::InputInt("skip draw dynamic", &g_skipdraw);
     ImGui::Checkbox("skip drawing static meshes", &g_skipdraw_static);
 
     ImGui::InputInt("g_bone_count", &g_bcount);
-    
+
 #if 0
     ImGui::InputInt("base_vertex_index", &g_temp_dip_things.base_vertex_index);
     ImGui::InputInt("min_vertex_index", (int*) &g_temp_dip_things.min_vertex_index);
@@ -2660,92 +2228,34 @@ void RendererReplace::on_draw_ui() {
 #endif
 }
 
-//TODO
-void RendererReplace::d3d_create_and_lock_vb_sub_6E1260_internal() noexcept
-{
+// TODO
+void RendererReplace::d3d_create_and_lock_vb_sub_6E1260_internal() noexcept {
 }
 
-void RendererReplace::d3d_create_and_lock_vb_sub_6E1260() noexcept
-{
+void RendererReplace::d3d_create_and_lock_vb_sub_6E1260() noexcept {
 }
-void RendererReplace::init_d3d9_sub_408DE0_internal() noexcept
-{
-#if 0
-    constexpr auto vertex_format_dmc3_3d = D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_DIFFUSE | D3DFVF_SPECULAR | D3DFVF_TEX1 | D3DFVF_TEX2;
-    m_d3d_init_hook_sub_408DE0->get_original<decltype(init_d3d9_sub_408DE0)>()();
-    //return m_d3d_init_hook_sub_408DE0->get_original<decltype(init_d3d9_sub_408DE0)>()();
-    wi::graphics::GraphicsDevice* dev = wi::graphics::GetDevice();
-
-    HWND game_window = *(HWND*)0x00832DB4;
-    application.SetWindow(game_window);
-    //application.Initialize();
-    // just show some basic info:
-    application.infoDisplay.active = true;
-    application.infoDisplay.watermark = true;
-    application.infoDisplay.resolution = true;
-    application.infoDisplay.fpsinfo = true;
-    if (!application.initialized) {
-
-        auto& shaderPath = wi::renderer::GetShaderSourcePath();
-        wi::renderer::SetShaderSourcePath(wi::helper::GetCurrentPath() + "/");
-
-        if(!wi::renderer::LoadShader(wi::graphics::ShaderStage::VS, debug_vs, "debugVS.cso")) {
-            printf("error compiling debugVS.cso");
-        }
-        if (!wi::renderer::LoadShader(wi::graphics::ShaderStage::PS, debug_ps, "debugPS.cso")) {
-            printf("error compiling debugPS.cso");
-        }
-
-        wi::renderer::SetShaderSourcePath(shaderPath);
-
-        application.Initialize();
-        application.initialized = true;
-    }
-    if(!create_device_objects()) {
-        printf("error creating device objects");
-    }
-    #if 0
-    std::thread wm_handler([]() {
-        MSG msg = { 0 };
-        while (msg.message != WM_QUIT)
-        {
-            if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-                TranslateMessage(&msg);
-                DispatchMessage(&msg);
-            }
-            else {
-
-                application.Run(); // run the update - render loop (mandatory)
-
-            }
-        }
-        });
-    wm_handler.detach();
-    #endif
-    return m_d3d_init_hook_sub_408DE0->get_original<decltype(init_d3d9_sub_408DE0)>()();
-#endif
+void RendererReplace::init_d3d9_sub_408DE0_internal() noexcept {
 }
 
-void RendererReplace::init_d3d9_sub_408DE0() noexcept
-{
+void RendererReplace::init_d3d9_sub_408DE0() noexcept {
     g_rreplace->init_d3d9_sub_408DE0_internal();
 }
 
 // during load
-//void RendererReplace::on_config_load(const utility::Config &cfg) {
+// void RendererReplace::on_config_load(const utility::Config &cfg) {
 //	for (IModValue& option : m_options) {
 //		option.config_load(cfg);
 //	}
 //}
 // during save
-//void RendererReplace::on_config_save(utility::Config &cfg) {
+// void RendererReplace::on_config_save(utility::Config &cfg) {
 //	for (IModValue& option : m_options) {
 //		option.config_save(cfg);
 //	}
 //}
 // do something every frame
-//void RendererReplace::on_frame() {}
+// void RendererReplace::on_frame() {}
 // will show up in debug window, dump ImGui widgets you want here
-//void RendererReplace::on_draw_debug_ui() {}
+// void RendererReplace::on_draw_debug_ui() {}
 // will show up in main window, dump ImGui widgets you want here
-//void RendererReplace::on_draw_ui() {}
+// void RendererReplace::on_draw_ui() {}

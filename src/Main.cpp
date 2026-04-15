@@ -134,7 +134,7 @@ static BOOL EnableAWE() {
 BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
     if (reason == DLL_PROCESS_ATTACH) {
 #ifndef NDEBUG
-        //MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
+        MessageBox(NULL, "Debug attach opportunity", "DMC3", MB_ICONINFORMATION);
 #endif
         bool pe_section_found = find_pe_section_init_arena();
         if (!pe_section_found) {
@@ -206,7 +206,7 @@ BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
         }
 #endif
 
-#if 0
+#if 1
         g_renderer_replace = new RendererReplace();
         g_renderer_replace->on_initialize();
 #endif
