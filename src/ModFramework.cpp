@@ -23,9 +23,9 @@
 #include "utility/ExceptionHandler.hpp"
 #include "utility/Thread.hpp"
 
-#include "Effekseer_DX9.h"
+//#include "Effekseer_DX9.h"
 
-static EfkD3D9* g_efk{};
+//static EfkD3D9* g_efk{};
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

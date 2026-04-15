@@ -85,7 +85,11 @@ void Mods::load_mods() {
 #endif // !GAMEPLAY_HOOKS
 
 	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
+#if GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<EnemySpawnRate>()); // ldk
+#else
+    m_mods.emplace_back(std::make_unique<Mod>());
+#endif
 
 #if GAMEPLAY_HOOKS
 	m_mods.emplace_back(std::make_unique<AreaJump>());

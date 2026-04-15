@@ -1,12 +1,20 @@
 #include "StyleSwitchFX.hpp"
 #include "utility/Scan.hpp"
 #include "utility/Compressed.hpp"
-#include "../Sfx.cpp"
 #include "d3dx9.h"
 #include "CustomAlolcator.hpp"
 
+#include <dsound.h>
+#include <mmsystem.h>
+
+#define DEVIL4_SFX 69
+#define SOUND_BUFFERS_MAX 4
+
+#define WAV_PATH "native\\sound\\style_switch.wav"
+
 static CPlDante* g_char_ptr     = nullptr;
 static cCameraCtrl* g_cam_ptr   = nullptr;
+static float g_pan_distance = 1000.0f;
 #if 0 // TODO coat textures
 static Devil3Texture* g_texture = nullptr;
 static IDirect3DTexture9* g_texture_original = nullptr;
@@ -56,6 +64,7 @@ static std::array sfx_presets = {
 	SfxPreset { "Crazy Combo start SFX", 0, 80, 0 },
 	SfxPreset { "Enemy DT SFX", 0, 90, 0 },
 	SfxPreset { "Player DT start SFX", 1, 80, 0 },
+    SfxPreset { "\\native\\sound\\style_switch.wav", DEVIL4_SFX, DEVIL4_SFX, DEVIL4_SFX },
 	SfxPreset { "Custom", -1, -1, -1 }
 };
 
@@ -202,6 +211,190 @@ void style_switch_efx_load_textures() {
 }
 #endif
 
+struct CustomSoundData {
+    struct WavData {
+        WAVEFORMATEX fmt;
+        const uint8_t* data;
+        DWORD size;
+        uint8_t* raw_bytes;
+    };
+
+    static constexpr LPDIRECTSOUND8* g_devil3_directsound = (LPDIRECTSOUND8*)0x00833240;
+    static inline LPDIRECTSOUNDBUFFER devil3_sbuf[4]{};
+    static inline WavData custom_style_switch_sound{};
+
+    CustomSoundData() {
+        char buffer[MAX_PATH] = {};
+        GetCurrentDirectoryA(MAX_PATH, buffer);
+        auto err = load_custom_sfx(&custom_style_switch_sound,  devil3_sbuf);
+        if (err.has_value()) {
+            throw std::runtime_error(err.value());
+        }
+    }
+    ~CustomSoundData() {
+        unload_custom_sfx(&custom_style_switch_sound, devil3_sbuf);
+    }
+
+    CustomSoundData(const CustomSoundData&)            = delete;
+    CustomSoundData(CustomSoundData&&)                 = delete;
+    CustomSoundData& operator=(const CustomSoundData&) = delete;
+    CustomSoundData& operator=(CustomSoundData&&)      = delete;
+
+    static std::optional<const char*> load_wav_from_memory(const uint8_t* bytes, size_t byte_count, WavData* out) {
+        if (byte_count < 44) {
+            return ("Too small for WAV\n");
+        }
+        if (memcmp(bytes, "RIFF", 4) || memcmp(bytes + 8, "WAVE", 4)) {
+            return ("Not a WAV\n");
+            
+        }
+
+        /* Own a copy so the caller can free the original */
+        out->raw_bytes = (uint8_t*)malloc(byte_count);
+        if (out->raw_bytes) {
+            memcpy(out->raw_bytes, bytes, byte_count);
+        } else {
+            return "Not enough memories";
+        }
+
+        memset(&out->fmt, 0, sizeof(out->fmt));
+        out->data = nullptr;
+        out->size = 0;
+
+        DWORD pos = 12;
+        while (pos + 8 <= (DWORD)byte_count) {
+            uint32_t id  = *(uint32_t*)(out->raw_bytes + pos);
+            uint32_t csz = *(uint32_t*)(out->raw_bytes + pos + 4);
+            pos += 8;
+            if (pos + csz > (DWORD)byte_count)
+                break;
+
+            if (id == *(uint32_t*)"fmt " && csz >= sizeof(PCMWAVEFORMAT)) {
+                out->fmt.wFormatTag      = *(uint16_t*)(out->raw_bytes + pos);
+                out->fmt.nChannels       = *(uint16_t*)(out->raw_bytes + pos + 2);
+                out->fmt.nSamplesPerSec  = *(uint32_t*)(out->raw_bytes + pos + 4);
+                out->fmt.nAvgBytesPerSec = *(uint32_t*)(out->raw_bytes + pos + 8);
+                out->fmt.nBlockAlign     = *(uint16_t*)(out->raw_bytes + pos + 12);
+                out->fmt.wBitsPerSample  = *(uint16_t*)(out->raw_bytes + pos + 14);
+            } else if (id == *(uint32_t*)"data") {
+                out->data = out->raw_bytes + pos;
+                out->size = csz;
+            }
+            pos += csz;
+            if (pos & 1)
+                pos++;
+        }
+
+        if (!out->data) {
+            free(out->raw_bytes);
+            return ("No data chunk\n");
+        }
+        return std::nullopt;
+    }
+
+    static std::optional<const char*> load_wav_file(const char* path, WavData* out) {
+        FILE* f = fopen(path, "rb");
+        if (!f) {
+            return "Cannot open " WAV_PATH;
+        }
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        auto buf = (uint8_t*)malloc(sz);
+        if (buf == NULL) {
+            fclose(f);
+            return "not enough memories";
+        }
+        else {
+            fread(buf, 1, sz, f);
+            fclose(f);
+            std::optional<const char*> ok = load_wav_from_memory(buf, sz, out);
+            free(buf);
+            return ok;
+        }
+    }
+
+    static LONG calc_pan(cCameraCtrl* cam, Vector3f sound_pos, float max_dist) {
+        glm::vec3 p_up(cam->upVector.x, cam->upVector.y, cam->upVector.z);
+        glm::vec3 p_cam(cam->pos.x, cam->pos.y, cam->pos.z);
+        glm::vec3 p_look(cam->lookat.x, cam->lookat.y, cam->lookat.z);
+
+        glm::vec3 forward = glm::normalize(p_look - p_cam);
+        glm ::vec3 right  = glm::normalize(glm::cross(forward, p_up));
+
+        glm::vec3 to_sound = sound_pos - p_cam;
+
+        float pan_val = glm::dot(to_sound, right);
+
+        // Scale to DirectSound (-10000 to +10000)
+        pan_val     = glm::clamp(pan_val, -max_dist, max_dist);
+        LONG ds_pan = (LONG)(pan_val / max_dist * 10000.0f);
+
+        return ds_pan;
+    }
+
+    static LONG calc_volume(float sx, float sy, float sz,
+                            float lx, float ly, float lz,
+                            float max_dist) {
+        float dx   = sx - lx;
+        float dy   = sy - ly;
+        float dz   = sz - lz;
+        float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        if (dist >= max_dist)
+            return DSBVOLUME_MIN;
+        if (dist <= 0.0f)
+            return DSBVOLUME_MAX;
+        return (LONG)(dist / max_dist * -10000.0f);
+    }
+
+    static std::optional<const char*> load_custom_sfx(WavData* wav, LPDIRECTSOUNDBUFFER* dsound_buffers) {
+
+        std::optional<const char*> ok = load_wav_file(WAV_PATH, wav);
+        if (ok.has_value()) {
+            return ok;
+        }
+
+        DSBUFFERDESC bd  = {};
+        bd.dwSize        = sizeof(bd);
+        bd.dwFlags       = DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLPAN;
+        bd.dwBufferBytes = wav->size;
+        bd.lpwfxFormat   = &wav->fmt;
+        auto dsound      = *g_devil3_directsound;
+
+        for (int i = 0; i < SOUND_BUFFERS_MAX; i++) {
+
+            HRESULT hr = dsound->CreateSoundBuffer(&bd, &dsound_buffers[i], nullptr);
+            if (FAILED(hr)) {
+                return "Failed to create dsound buffer";
+            }
+
+            // fill sound buffers
+            void *p1, *p2;
+            DWORD s1, s2;
+            hr = dsound_buffers[i]->Lock(0, wav->size, &p1, &s1, &p2, &s2, 0);
+            if (SUCCEEDED(hr)) {
+                memcpy(p1, wav->data, s1);
+                if (p2)
+                    memcpy(p2, wav->data + s1, s2);
+                dsound_buffers[i]->Unlock(p1, s1, p2, s2);
+            } else {
+                return "Failed to fill sound buffers";
+            }
+        }
+        return std::nullopt;
+    }
+
+    static void unload_custom_sfx(WavData* wav, LPDIRECTSOUNDBUFFER* dsound_buffers) {
+        free(wav->raw_bytes);
+        for (int i = 0; i < SOUND_BUFFERS_MAX; i++) {
+            dsound_buffers[i]->Stop();
+            dsound_buffers[i]->Release();
+            dsound_buffers[i] = nullptr;
+        }
+    }
+};
+std::unique_ptr<CustomSoundData> m_custom_sound;
+
 std::optional<std::string> StyleSwitchFX::on_initialize() {
     // HACK() for style switcher with more memory patch
     if(g_mem_patch_applied) {
@@ -229,6 +422,7 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
     // TODOOOOO(important): add soloud audio
     // g_char_ptr = (CPlDante*)0x1C8A600;
     g_char_ptr = devil3_sdk::get_pl_dante();
+    // why did i need srand?
     srand(time(0));
     // g_cam_ptr = (CCameraCtrl*)0x01371978;
 
@@ -260,11 +454,16 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
         printf("Got VoxObj from snd.drv! Nice\n");
     }
 #endif
+    //return std::nullopt;
 #if 0
     auto decompressed     = utility::DecompressFileFromMemoryWithSize(sfx_compressed_data, sfx_compressed_size);
     m_sound_file_mem      = std::get<0>(decompressed);
     m_sound_file_mem_size = std::get<1>(decompressed);
+    if (!load_wav_from_memory((uint8_t*)m_sound_file_mem, m_sound_file_mem_size, &g_devil4_style_switch_sound)) {
+        return "Failed to load devil4 style switch";
+    }
 #endif
+
 #ifdef SND_TODO
     m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
     m_vox->set_volume(1.0f);
@@ -285,8 +484,6 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
     g_vfx_a3   = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
     g_vfx_preset_index = cfg.get<size_t>("StyleSwitchVfxIndex").value_or(0);
 
-
-
     g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
     g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
     g_sfx_preset.a3 = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
@@ -294,6 +491,15 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
         g_style_colors[i] = cfg.get<glm::vec4>(g_style_names[i]).value_or(g_default_colors[i]);
+    }
+
+    if (g_sfx_preset.a1 == DEVIL4_SFX && g_sfx_preset.a2 == DEVIL4_SFX && g_sfx_preset.a3 == DEVIL4_SFX) {
+        if (!m_custom_sound) {
+            m_custom_sound = std::make_unique<CustomSoundData>();
+        }
+        else {
+            assert("CustomSoundData exists wtf?");
+        }
     }
 }
 
@@ -439,6 +645,27 @@ void StyleSwitchFX::on_draw_ui() {
             ImGui::EndCombo();
         }
         if (g_sfx_preset_index == 5) {
+            ImGui::Text("Put style_switch.wav file into .\\native\\sound\\style_switch.wav");
+            static const char* error_message = nullptr;
+            if (ImGui::Button("Reload custom sound")) {
+                if (!m_custom_sound) {
+                    try {
+                        m_custom_sound = std::make_unique<CustomSoundData>();
+                    } catch (std::runtime_error e) {
+                        spdlog::error(e.what());
+                        m_custom_sound = nullptr;
+                        error_message = e.what();
+                    }
+                }
+            }
+            if (m_custom_sound && (error_message == nullptr)) {
+                ImGui::TextColored(ImColor(IM_COL32(85,217,133,255)), "file loaded");
+                if (ImGui::Button("Test play sound")) {
+                    m_custom_sound->devil3_sbuf[0]->Play(0, 0, 0);
+                }
+            }
+        }
+        if (g_sfx_preset_index == 6) {
             int pa1 = g_sfx_preset.a1;
             int pa2 = g_sfx_preset.a2;
 
@@ -487,13 +714,42 @@ void StyleSwitchFX::on_draw_ui() {
 void StyleSwitchFX::on_draw_debug_ui()
 {
     ImGui::Text("cPlDante: %p", g_char_ptr);
+    ImGui::SliderFloat("g_pan_dist", &g_pan_distance, 0.0f, 99999.0f);
 }
-
 void StyleSwitchFX::play_sound()
 {
 	if (!g_enable_sound) { return; }
 
-    devil3_sdk::play_sound(g_sfx_preset.a1, g_sfx_preset.a2, rand() % 3);
+    if (g_sfx_preset.a1 == DEVIL4_SFX &&
+        g_sfx_preset.a2 == DEVIL4_SFX &&
+        g_sfx_preset.a3 == DEVIL4_SFX) {
+        static int counter = 0;
+        int index = counter % 4;
+        static constexpr float max_dist = 10000.0f;
+        cCameraCtrl* camera = devil3_sdk::get_cam_ctrl();
+		if (!camera || camera == (cCameraCtrl*)-1) { return; };
+        auto p = g_char_ptr->Poistion;
+        auto l = camera->pos;
+        LONG pan = CustomSoundData::calc_pan(camera, Vector3f{p.x, p.y, p.z}, g_pan_distance);
+        LONG vol = CustomSoundData::calc_volume(p.x, p.y, p.z, l.x, l.y, l.z, 20000.0f);
+#ifndef _NDEBUG
+        printf("  pan = %d  (DSOUND: -10000=left, 0=center, +10000=right)\n", pan);
+        printf("  vol = %d  (DSOUND: -10000=silent, 0=full)\n", vol);
+#endif // !_NDEBUG
+        DWORD status;
+        m_custom_sound->devil3_sbuf[index]->GetStatus(&status);
+        if(status & DSBSTATUS_PLAYING) {
+             m_custom_sound->devil3_sbuf[index]->Stop();
+             m_custom_sound->devil3_sbuf[index]->SetCurrentPosition(0);
+        }
+        m_custom_sound->devil3_sbuf[index]->SetPan(pan);
+        m_custom_sound->devil3_sbuf[index]->SetVolume(vol);
+        m_custom_sound->devil3_sbuf[index]->Play(0, 0, 0);
+        counter += 1;
+    }
+    else {
+        devil3_sdk::play_sound(g_sfx_preset.a1, g_sfx_preset.a2, rand() % 3);
+    }
 
 #if SND_TODO
 	if (m_vox) {

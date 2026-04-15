@@ -1538,6 +1538,11 @@ IndexData make_index_buffer(SomeRenderingData* srd) {
 
     for (uint32_t i = 2; i < srd->vert_count; ++i) {
         std::uint16_t p3 = i;
+
+        if (p1 >= srd->vert_count || p2 >= srd->vert_count || p3 >= srd->vert_count) {
+            printf("Bad index detected: %d, %d, %d\n", p1, p2, p3);
+        }
+
         bool tri_skip {false};
         if (srd->scmdata_ptr) { // static meshes
             tri_skip = srd->scmdata_ptr[p3].triSkipFlag;
@@ -1907,8 +1912,7 @@ std::vector<VertexDefDynamic> g_vertex_data_world;
 std::vector<WORD> g_index_data_world;
 
 // TODO() imgui remove
-std::vector<std::array<int, 4>> g_combinations;
-size_t g_iter {0};
+bool g_skipdraw_static {false};
 
 int g_bcount { 24 };
 int g_bindex_0 {0};
@@ -1935,6 +1939,7 @@ static __declspec(naked) void r_malloc_vertex_datas_detour() {
 
 static void r_render_world_intercept(RDrawSomethingStruct* rdss) {
     if(!rdss) { return; }
+    if(g_skipdraw_static) { return; }
     //printf("|rdss->srd->vert_count=%d\n", rdss->srd->vert_count);
 
     typedef void(__fastcall * rPrepDrawDataSub6DF5A0)(unsigned int a1, int start_offset, int tri_strip_count);
@@ -2267,7 +2272,6 @@ static void r_reset_rendering_globals() {
     g_indices_offset           = 0;
     g_vertices_offset          = 0;
     g_current_obj = 0;
-    g_iter = (g_iter + 1) % g_combinations.size();
 #if 0
     g_bindex_0 = g_combinations[g_iter][0];
     g_bindex_1 = g_combinations[g_iter][1];
@@ -2423,8 +2427,9 @@ static void __cdecl d3d_draw_primitive_sub_6E1C00(unsigned int vertexCount, int 
 
         for (uint16_t i = 0; i < bones; ++i) {
             D3DMATRIX& mat = *(D3DMATRIX*)&ass[i];
-            assert(IsMatrixZero(mat) == false);
-            pdevice->SetTransform(D3DTS_WORLDMATRIX(i), &mat);
+            if(IsMatrixZero(mat) == false) {
+                pdevice->SetTransform(D3DTS_WORLDMATRIX(i), &mat);
+            }
         }
 
 #if 0
@@ -2541,17 +2546,6 @@ std::optional<std::string> RendererReplace::on_initialize() {
         return "failed to create render globals reset hook";
     }
 
-    // Generate all combinations
-    for (int i = 0; i <= 3; ++i) {
-        for (int j = 0; j <= 3; ++j) {
-            for (int k = 0; k <= 3; ++k) {
-                for (int l = 0; l <= 3; ++l) {
-                    g_combinations.push_back({i, j, k, l});
-                }
-            }
-        }
-    }
-
     return Mod::on_initialize();
 
     m_d3d_dispatch_drawcall_006DF65D = std::make_unique<FunctionHook>(0x006DF65D, &d3d_dispatch_drawcall);
@@ -2619,6 +2613,7 @@ std::optional<std::string> RendererReplace::on_initialize() {
 }
 
 void RendererReplace::on_draw_ui() {
+#if 0
     static constexpr float w1 = 0.71f;
     static constexpr float w2 = 0.29f;
 
@@ -2644,13 +2639,15 @@ void RendererReplace::on_draw_ui() {
 
     D3DXVec3TransformCoord(&result, &vec, &mat2);
     ImGui::Text("result: %f, %f, %f", result.x * w2, result.y * w2, result.z * w2);
+#endif
 
     ImGui::InputInt("g_bindex_0", &g_bindex_0);
     ImGui::InputInt("g_bindex_1", &g_bindex_1);
     ImGui::InputInt("g_bindex_2", &g_bindex_2);
     ImGui::InputInt("g_bindex_3", &g_bindex_3);
 
-    ImGui::InputInt("skip draw", &g_skipdraw );
+    ImGui::InputInt("skip draw dynamic", &g_skipdraw );
+    ImGui::Checkbox("skip drawing static meshes", &g_skipdraw_static);
 
     ImGui::InputInt("g_bone_count", &g_bcount);
     

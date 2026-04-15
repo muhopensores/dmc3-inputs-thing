@@ -4,6 +4,8 @@
 
 #include "sdk/VoxObj.hpp"
 
+struct CustomSoundData;
+
 class StyleSwitchFX : public Mod {
 public:
   StyleSwitchFX() = default;

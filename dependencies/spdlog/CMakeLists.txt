@@ -3,7 +3,7 @@
 # Distributed under the MIT License (http://opensource.org/licenses/MIT)
 #
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.5)
 project(spdlog VERSION 1.3.1 LANGUAGES CXX)
 include(CMakeDependentOption)
 include(GNUInstallDirs)

@@ -114,14 +114,12 @@ set(UTILITY_SRC
 set(FRAMEWORK_SRC
     PromptFontGlyphs.hpp
     PromptFontCompressed.cpp
-    Sfx.cpp
     Mod.hpp
     Mods.hpp
     Mods.cpp
     ModFramework.hpp
     ModFramework.cpp
     Config.hpp
-    Profiler.hpp
 #    Effekseer_DX9.h
 #    Effekseer_DX9.cpp
 )
