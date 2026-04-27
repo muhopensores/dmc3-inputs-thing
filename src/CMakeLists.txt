@@ -130,7 +130,7 @@ set(FRAMEWORK_SRC
 #    Effekseer_DX9.cpp
 )
 
-source_group("imgui", FILES ${IMGUI_SRC})
+source_group("imgui" FILES ${IMGUI_SRC})
 source_group("Hooks" FILES ${HOOKS_SRC})
 source_group("Mods" FILES ${MODS_SRC})
 source_group("SDK" FILES ${SDK_SRC})
