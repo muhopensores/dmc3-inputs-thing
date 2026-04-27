@@ -4,6 +4,13 @@
 #include "d3dx9.h"
 #include "CustomAlolcator.hpp"
 
+#include "fw-imgui/sm.cpp"
+#include "fw-imgui/gs.cpp"
+#include "fw-imgui/ts.cpp"
+#include "fw-imgui/rg.cpp"
+#include "fw-imgui/qs.cpp"
+#include "fw-imgui/dg.cpp"
+
 #include <dsound.h>
 #include <mmsystem.h>
 
@@ -15,6 +22,8 @@
 static CPlDante* g_char_ptr     = nullptr;
 static cCameraCtrl* g_cam_ptr   = nullptr;
 static float g_pan_distance = 1000.0f;
+static float g_vol_distance = 20000.0f;
+
 #if 0 // TODO coat textures
 static Devil3Texture* g_texture = nullptr;
 static IDirect3DTexture9* g_texture_original = nullptr;
@@ -22,21 +31,10 @@ static IDirect3DTexture9* g_texture_original = nullptr;
 
 std::mutex g_style_switch_mutex {};
 
-#if 0
+
 static constexpr void* GET_PL_DANTE_TEXTURE_DECODE() {
 	return (void*)0x024F9640;
 }
-#endif
-
-#ifdef SND_HACK
-#define SND_CREATE_VOX(name) VoxObj* name()
-typedef SND_CREATE_VOX(snd_create_vox);
-SND_CREATE_VOX(SndCreateVoxStub) {
-	return nullptr;
-}
-static snd_create_vox* SndCreateVox_ = SndCreateVoxStub;
-#define SndCreateVox SndCreateVox_
-#endif
 
 // TODO(): ability to change vfx that's played ?
 static int       g_vfx_id = 218;
@@ -46,6 +44,8 @@ static int       prev_style;
 static int*      current_style = (int*)0xB6B220;
 static bool      g_enable_mod;
 static bool      g_enable_sound;
+static bool      g_enable_coats;
+static char      g_sound_err_buffer[256];
 #if 0 // TODO coat textures
 static bool      g_enable_textures;
 static bool      g_textures_not_found{false};
@@ -112,9 +112,77 @@ static std::array<glm::vec4, STYLE_MAX> g_style_colors{
 	glm::vec4(0.941f, 0.065f, 0.658,  1.0f), // german word
 };
 
-#if 0
-static std::array<IDirect3DTexture9*, DANTE_STYLES::STYLE_MAX> g_style_textures {};
-#endif
+struct StyleSwitchCoatTextureData {
+    
+    IDirect3DTexture9* coats[STYLE_MAX];
+    D3DCOLOR tint;
+};
+static StyleSwitchCoatTextureData g_coat_texture_data {};
+
+struct FFPState {
+    DWORD colorOp, colorArg1, colorArg2, constant;
+    DWORD alphaOp, alphaArg1, alphaArg2;
+    IDirect3DTexture9* tex1;
+};
+
+void load_coat_textures() {
+
+    auto [sm_texture_data, sm_texture_size] = utility::DecompressFileFromMemoryWithSize(sm_compressed_data, sm_compressed_size);
+    auto [gs_texture_data, gs_texture_size] = utility::DecompressFileFromMemoryWithSize(gs_compressed_data, gs_compressed_size);
+    auto [ts_texture_data, ts_texture_size] = utility::DecompressFileFromMemoryWithSize(ts_compressed_data, ts_compressed_size);
+    auto [rg_texture_data, rg_texture_size] = utility::DecompressFileFromMemoryWithSize(rg_compressed_data, rg_compressed_size);
+    auto [qs_texture_data, qs_texture_size] = utility::DecompressFileFromMemoryWithSize(qs_compressed_data, qs_compressed_size);
+    auto [dg_texture_data, dg_texture_size] = utility::DecompressFileFromMemoryWithSize(dg_compressed_data, dg_compressed_size);
+
+    HRESULT ok;
+
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), sm_texture_data, sm_texture_size, &g_coat_texture_data.coats[0]); assert(SUCCEEDED(ok));
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), gs_texture_data, gs_texture_size, &g_coat_texture_data.coats[1]); assert(SUCCEEDED(ok));
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), ts_texture_data, ts_texture_size, &g_coat_texture_data.coats[2]); assert(SUCCEEDED(ok));
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), rg_texture_data, rg_texture_size, &g_coat_texture_data.coats[3]); assert(SUCCEEDED(ok));
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), qs_texture_data, qs_texture_size, &g_coat_texture_data.coats[4]); assert(SUCCEEDED(ok));
+    ok = D3DXCreateTextureFromFileInMemory(g_framework->get_d3d9_device(), dg_texture_data, dg_texture_size, &g_coat_texture_data.coats[4]); assert(SUCCEEDED(ok));
+
+    free(sm_texture_data);
+    free(gs_texture_data);
+    free(ts_texture_data);
+    free(rg_texture_data);
+    free(qs_texture_data);
+    free(dg_texture_data);
+}
+
+HRESULT __stdcall set_texture_hook(IDirect3DDevice9* pDevice, Devil3Texture* tex) {
+    static FFPState saved{};
+
+    if (!pDevice || !tex) {
+        return 0x80004005;
+    }
+
+    if (tex->decodeDataPointer != GET_PL_DANTE_TEXTURE_DECODE() || !tex->texturePointer) {
+        return pDevice->SetTexture(0, tex->texturePointer);
+    }
+
+    assert(tex->decodeDataPointer == GET_PL_DANTE_TEXTURE_DECODE());
+
+    if ((g_coat_texture_data.coats[0] == NULL)) {
+        load_coat_textures();
+    }
+
+    HRESULT res = pDevice->SetTexture(0, g_coat_texture_data.coats[*current_style]);
+
+    return res;
+}
+
+static uintptr_t jmp_back_d3d_set_texture = 0x006E0E27;
+static __declspec(naked) void detour_d3d_sets_texture_maybe_sub_6E0DF0() {
+    __asm {
+        // will be eaten by stdcall
+        push esi
+        push eax
+        call set_texture_hook
+        jmp DWORD PTR [jmp_back_d3d_set_texture]
+    }
+}
 
 static void play_effect(int style) {
 	typedef int(__cdecl* cEffectBase_sub_67FE80)(char a1, int a2, int *a3, int a4);
@@ -168,49 +236,6 @@ static __declspec(naked) void detour() {
 // clang-format on
 #endif
 
-#if 0 // TODO coat textures
-void style_switch_efx_clear_textures() {
-    if(!g_enable_textures) {return;}
-    auto device = g_framework->get_d3d9_device();
-    HRESULT hr{};
-    for (IDirect3DTexture9* texture : g_style_textures) {
-        if (texture) {
-            texture->Release();
-            texture = nullptr;
-        }
-    }
-    if (g_texture_original) {
-        g_texture_original->Release();
-        g_texture_original = nullptr;
-    }
-    if(g_texture) {
-        g_texture = nullptr;
-    }
-}
-
-void style_switch_efx_load_textures() {
-    if(!g_enable_textures) {return;}
-    auto device = g_framework->get_d3d9_device();
-    HRESULT hr{};
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\SM.dds", &g_style_textures[SWORDMASTER]);
-    assert(SUCCEEDED(hr));
-    if(FAILED(hr)) {
-        g_enable_textures = false;
-        g_textures_not_found = true;
-    }
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\TS.dds", &g_style_textures[TRICKSTER]);
-    assert(SUCCEEDED(hr));
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\GS.dds", &g_style_textures[GUNSLINGER]);
-    assert(SUCCEEDED(hr));
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\RG.dds", &g_style_textures[ROYALGUARD]);
-    assert(SUCCEEDED(hr));
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\QS.dds", &g_style_textures[QUICKSILVER]);
-    assert(SUCCEEDED(hr));
-    hr = D3DXCreateTextureFromFileA(device, "native\\texture\\DG.dds", &g_style_textures[GERMANWORD]);
-    assert(SUCCEEDED(hr));
-}
-#endif
-
 struct CustomSoundData {
     struct WavData {
         WAVEFORMATEX fmt;
@@ -228,7 +253,11 @@ struct CustomSoundData {
         GetCurrentDirectoryA(MAX_PATH, buffer);
         auto err = load_custom_sfx(&custom_style_switch_sound,  devil3_sbuf);
         if (err.has_value()) {
+            strcpy_s(g_sound_err_buffer, sizeof(g_sound_err_buffer), err.value());
             throw std::runtime_error(err.value());
+        }
+        else {
+            memset(g_sound_err_buffer, 0, sizeof(g_sound_err_buffer));
         }
     }
     ~CustomSoundData() {
@@ -387,12 +416,24 @@ struct CustomSoundData {
     static void unload_custom_sfx(WavData* wav, LPDIRECTSOUNDBUFFER* dsound_buffers) {
         free(wav->raw_bytes);
         for (int i = 0; i < SOUND_BUFFERS_MAX; i++) {
+            if (!dsound_buffers[i]) { continue; }
             dsound_buffers[i]->Stop();
             dsound_buffers[i]->Release();
             dsound_buffers[i] = nullptr;
         }
     }
 };
+
+static void load_dsound_stuff(std::unique_ptr<CustomSoundData>& custom_sound) {
+    custom_sound.reset();
+    try {
+        custom_sound = std::make_unique<CustomSoundData>();
+    } catch (std::runtime_error e) {
+        spdlog::error(e.what());
+        custom_sound = nullptr;
+    }
+}
+
 std::unique_ptr<CustomSoundData> m_custom_sound;
 
 std::optional<std::string> StyleSwitchFX::on_initialize() {
@@ -419,75 +460,32 @@ std::optional<std::string> StyleSwitchFX::on_initialize() {
         memcpy((void*)0x00C38B6C, &s1, sizeof(s1));
     }
 
-    // TODOOOOO(important): add soloud audio
-    // g_char_ptr = (CPlDante*)0x1C8A600;
     g_char_ptr = devil3_sdk::get_pl_dante();
+
     // why did i need srand?
     srand(time(0));
-    // g_cam_ptr = (CCameraCtrl*)0x01371978;
 
-    // m_sound_file_mem = utility::DecompressFileFromMemory(sfx_compressed_data,sfx_compressed_size);
-
-#ifdef SND_TODO
-    HMODULE snd = GetModuleHandle("snd.drv");
-    if (!snd) {
-        spdlog::info("[StyleSwitchFX]: snd.drv not found\n");
-        printf("[StyleSwitchFX]: snd.drv not found\n");
-        return Mod::on_initialize();
-    }
-    FARPROC snd_proc = GetProcAddress(snd, "IsSndDrvSexy");
-    if (!snd_proc) {
-        spdlog::info("[StyleSwitchFX]: not using custom snd.drv\n");
-        printf("[StyleSwitchFX]: not using custom snd.drv\n");
-        return Mod::on_initialize();
-    }
-
-    SndCreateVox = (snd_create_vox*)GetProcAddress(snd, "CreateVox");
-    if (!SndCreateVox) {
-        spdlog::info("[StyleSwitchFX]: could not GetProcAddress of CreateVox. this should not happen\n");
-        printf("[StyleSwitchFX]: could not GetProcAddress of CreateVox. this should not happen\n");
-        return Mod::on_initialize();
-    }
-    m_vox = SndCreateVox();
-    if (m_vox) {
-        spdlog::info("Got VoxObj from snd.drv! Nice\n");
-        printf("Got VoxObj from snd.drv! Nice\n");
-    }
-#endif
-    //return std::nullopt;
-#if 0
-    auto decompressed     = utility::DecompressFileFromMemoryWithSize(sfx_compressed_data, sfx_compressed_size);
-    m_sound_file_mem      = std::get<0>(decompressed);
-    m_sound_file_mem_size = std::get<1>(decompressed);
-    if (!load_wav_from_memory((uint8_t*)m_sound_file_mem, m_sound_file_mem_size, &g_devil4_style_switch_sound)) {
-        return "Failed to load devil4 style switch";
-    }
-#endif
-
-#ifdef SND_TODO
-    m_vox->load_mem((unsigned char*)m_sound_file_mem, m_sound_file_mem_size);
-    m_vox->set_volume(1.0f);
-#endif
     return Mod::on_initialize();
 }
 
 // during load
 void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
-    g_enable_mod      = cfg.get<bool>("StyleSwitchFXenabled").value_or(false);
-    g_enable_sound    = cfg.get<bool>("StyleSwitchSoundEnabled").value_or(false);
-#if 0 // TODO coat textures
-    g_enable_textures = cfg.get<bool>("StyleSwitchTexturesEnabled").value_or(false);
-#endif
 
-    g_vfx_id   = cfg.get<int>("StyleSwitchVfxId").value_or(218);
-    g_vfx_bank = cfg.get<int>("StyleSwitchVfxBank").value_or(3);
-    g_vfx_a3   = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
+    g_enable_mod   = cfg.get<bool>("StyleSwitchFXenabled").value_or(false);
+    g_enable_sound = cfg.get<bool>("StyleSwitchSoundEnabled").value_or(false);
+    g_enable_coats = cfg.get<bool>("StyleSwitchCoatsEnabled").value_or(false);
+
+    g_vfx_id           = cfg.get<int>("StyleSwitchVfxId").value_or(218);
+    g_vfx_bank         = cfg.get<int>("StyleSwitchVfxBank").value_or(3);
+    g_vfx_a3           = cfg.get<int>("StyleSwitchVfxIdk").value_or(8);
     g_vfx_preset_index = cfg.get<size_t>("StyleSwitchVfxIndex").value_or(0);
 
-    g_sfx_preset.a1 = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
-    g_sfx_preset.a2 = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
-    g_sfx_preset.a3 = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
+    g_sfx_preset.a1    = cfg.get<int16_t>("StyleSwitchSfxBank").value_or(0);
+    g_sfx_preset.a2    = cfg.get<int16_t>("StyleSwitchSfxId").value_or(63);
+    g_sfx_preset.a3    = cfg.get<int>("StyleSwitchSfxIdk").value_or(0);
     g_sfx_preset_index = cfg.get<size_t>("StyleSwitchSfxIndex").value_or(0);
+    g_pan_distance     = cfg.get<float>("StyleSwitchSfxDsoundPan").value_or(1000.0f);
+    g_vol_distance     = cfg.get<float>("StyleSwitchSfxDsoundVol").value_or(20000.0f);
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
         g_style_colors[i] = cfg.get<glm::vec4>(g_style_names[i]).value_or(g_default_colors[i]);
@@ -495,10 +493,15 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
 
     if (g_sfx_preset.a1 == DEVIL4_SFX && g_sfx_preset.a2 == DEVIL4_SFX && g_sfx_preset.a3 == DEVIL4_SFX) {
         if (!m_custom_sound) {
-            m_custom_sound = std::make_unique<CustomSoundData>();
-        }
-        else {
+            load_dsound_stuff(m_custom_sound);
+        } else {
             assert("CustomSoundData exists wtf?");
+        }
+    }
+    if (g_enable_coats) {
+        uintptr_t ass = 0;
+        if (!install_hook_absolute(0x006E0E18, m_set_texture_hook, detour_d3d_sets_texture_maybe_sub_6E0DF0, &ass, 5)) {
+            spdlog::error("[StyleSwitchFx] Failed to install m_set_texture_hook");
         }
     }
 }
@@ -507,9 +510,7 @@ void StyleSwitchFX::on_config_load(const utility::Config& cfg) {
 void StyleSwitchFX::on_config_save(utility::Config& cfg) {
     cfg.set<bool>("StyleSwitchFXenabled",       g_enable_mod);
     cfg.set<bool>("StyleSwitchSoundEnabled",    g_enable_sound);
-#if 0 // TODO coat textures
-    cfg.set<bool>("StyleSwitchTexturesEnabled", g_enable_textures);
-#endif
+    cfg.set<bool>("StyleSwitchCoatsEnabled",    g_enable_coats);
 
     cfg.set<int>("StyleSwitchVfxId",   g_vfx_id);
     cfg.set<int>("StyleSwitchVfxBank", g_vfx_bank);
@@ -520,6 +521,10 @@ void StyleSwitchFX::on_config_save(utility::Config& cfg) {
     cfg.set<int16_t>("StyleSwitchSfxBank", g_sfx_preset.a1);
     cfg.set<int> ("StyleSwitchSfxIdk", g_sfx_preset.a3);
     cfg.set<size_t>("StyleSwitchSfxIndex", g_sfx_preset_index);
+
+    cfg.set<float>("StyleSwitchSfxDsoundPan", g_pan_distance);
+    cfg.set<float>("StyleSwitchSfxDsoundVol", g_vol_distance);
+
 
     for (int i = 0; i < DANTE_STYLES::STYLE_MAX; i++) {
         cfg.set<glm::vec4>(g_style_names[i], g_style_colors[i]);
@@ -535,12 +540,6 @@ void StyleSwitchFX::on_frame() {
         prev_style = *current_style;
         return;
     }
-#if 0 // TODO coat textures
-    if ((g_char_ptr->pad_0000) != 0x744D38) {
-        g_texture = nullptr;
-        return;
-    }
-#endif
     if (*current_style != prev_style) {
         if (g_vfx_id == 218) {
             g_vfx_a3 = 1;
@@ -552,9 +551,6 @@ void StyleSwitchFX::on_frame() {
             play_effect(*current_style);
         }
         play_sound();
-#if 0 // TODO coat textures
-        change_texture(*current_style);
-#endif
         prev_style = *current_style;
     }
 }
@@ -616,6 +612,9 @@ void StyleSwitchFX::on_draw_ui() {
     }
 
     ImGui::Checkbox("Enable sound effect", &g_enable_sound);
+    if (g_sound_err_buffer[0]) {
+        ImGui::Text("Sound init error: %s", g_sound_err_buffer);
+    }
     if (g_enable_sound) {
         int item_current_idx = 0;
         static int selected_combobox_index = g_sfx_preset_index;
@@ -646,24 +645,20 @@ void StyleSwitchFX::on_draw_ui() {
         }
         if (g_sfx_preset_index == 5) {
             ImGui::Text("Put style_switch.wav file into .\\native\\sound\\style_switch.wav");
-            static const char* error_message = nullptr;
+            static const char* error_message = g_sound_err_buffer;
             if (ImGui::Button("Reload custom sound")) {
-                if (!m_custom_sound) {
-                    try {
-                        m_custom_sound = std::make_unique<CustomSoundData>();
-                    } catch (std::runtime_error e) {
-                        spdlog::error(e.what());
-                        m_custom_sound = nullptr;
-                        error_message = e.what();
-                    }
-                }
+                load_dsound_stuff(m_custom_sound);
             }
-            if (m_custom_sound && (error_message == nullptr)) {
+            if (m_custom_sound && (g_sound_err_buffer[0] == NULL)) {
                 ImGui::TextColored(ImColor(IM_COL32(85,217,133,255)), "file loaded");
                 if (ImGui::Button("Test play sound")) {
                     m_custom_sound->devil3_sbuf[0]->Play(0, 0, 0);
                 }
             }
+            ImGui::InputFloat("sound pan max_distance", &g_pan_distance, 1.0f, 10.0f); ImGui::SameLine();
+            show_help_marker("left / right channel pan");
+            ImGui::InputFloat("sound decay max_distance", &g_vol_distance, 1.0, 10.0f); ImGui::SameLine();
+            show_help_marker("attenuates volume based on distance");
         }
         if (g_sfx_preset_index == 6) {
             int pa1 = g_sfx_preset.a1;
@@ -683,26 +678,16 @@ void StyleSwitchFX::on_draw_ui() {
             }
         }
     }
-
-#if 0 // TODO : textured coats
-    if (g_textures_not_found) {
-        ImGui::Text("Could not load coat textures from DMC3_ROOT\\native\\texture");
-        ImGui::Text("Check for permission errors if the files are there, or something idk");
-    }
-    else {
-        ImGui::Checkbox("Change coat color along with style", &g_enable_textures);
-    }
-#endif
-#if SND_TODO
-    if (m_vox != nullptr) {
-        static float snd_volume = 1.0f;
-        if (ImGui::DragFloat("Audio volume", &snd_volume, 0.1f, 0.0f, 10.0f)) {
-            snd_volume = glm::clamp(snd_volume, 0.0f, 10.0f);
-            m_vox->set_volume(snd_volume);
+    if (ImGui::Checkbox("Coats?", &g_enable_coats)) {
+        if (g_enable_coats) {
+            if (!m_set_texture_hook) {
+                uintptr_t ass = 0;
+                if (!install_hook_absolute(0x006E0E18, m_set_texture_hook, detour_d3d_sets_texture_maybe_sub_6E0DF0, &ass, 5)) {
+                    spdlog::error("[StyleSwitchFx] Failed to install m_set_texture_hook");
+                }
+            }
         }
-        ImGui::Checkbox("3D audio effects", &m_3d_audio);
     }
-#endif
 
     ImGui::Text("Customize style colors");
 
@@ -716,9 +701,24 @@ void StyleSwitchFX::on_draw_debug_ui()
     ImGui::Text("cPlDante: %p", g_char_ptr);
     ImGui::SliderFloat("g_pan_dist", &g_pan_distance, 0.0f, 99999.0f);
 }
+
+void StyleSwitchFX::on_reset(IDirect3DDevice9* pDevice, bool before) {
+    if(before) {
+        for (int i = 0; i < STYLE_MAX; i++) {
+            if(!g_coat_texture_data.coats[i]) { continue; }
+            g_coat_texture_data.coats[i]->Release();
+            g_coat_texture_data.coats[i] = nullptr;
+        }
+    }
+    else {
+        load_coat_textures();
+    }
+}
+
 void StyleSwitchFX::play_sound()
 {
 	if (!g_enable_sound) { return; }
+    if (!m_custom_sound) { return; }
 
     if (g_sfx_preset.a1 == DEVIL4_SFX &&
         g_sfx_preset.a2 == DEVIL4_SFX &&
@@ -750,64 +750,4 @@ void StyleSwitchFX::play_sound()
     else {
         devil3_sdk::play_sound(g_sfx_preset.a1, g_sfx_preset.a2, rand() % 3);
     }
-
-#if SND_TODO
-	if (m_vox) {
-		cCameraCtrl* camera = devil3_sdk::get_cam_ctrl();
-		if (!camera || camera == (cCameraCtrl*)-1) { return; };
-		g_cam_ptr = camera;
-		//glm::vec3 at = g_char_ptr->Poistion - g_cam_ptr->pos;
-
-		// soloud 3d wants audio shit in meters and dmc3 is cm iirc
-		glm::vec3 cam = g_cam_ptr->pos * 0.01f;
-		glm::vec3 plr = g_char_ptr->Poistion * 0.01f;
-		glm::vec3 at = cam - plr;
-
-		/*
-		m_vox->set_listener3d(g_cam_ptr->pos.x, g_cam_ptr->pos.y, g_cam_ptr->pos.z,
-			at.x, at.y, at.z, g_cam_ptr->upVector.x, g_cam_ptr->upVector.y, g_cam_ptr->upVector.z);
-		m_vox->play3d(g_char_ptr->Poistion.x, g_char_ptr->Poistion.y, g_char_ptr->Poistion.z, m_vox->m_volume);
-		*/
-		m_vox->set_listener3d(cam.x, cam.y, cam.z,
-			at.x, at.y, at.z, g_cam_ptr->upVector.x, g_cam_ptr->upVector.y, g_cam_ptr->upVector.z);
-		m_vox->play3d(plr.x, plr.y, plr.z, m_vox->m_volume);
-
-	}
-	else {
-#endif
-		//PlaySound((LPCSTR)m_sound_file_mem, NULL, SND_MEMORY | SND_ASYNC);
-#ifdef SND_TODO
-	}
-#endif
 }
-
-#if 0 // TODO coat textures
-void StyleSwitchFX::change_texture(int style) {
-    // const std::lock_guard<std::mutex> lock(g_style_switch_mutex);
-    if (g_textures_not_found) {
-        return;
-    }
-    if (!g_enable_textures) {
-        return;
-    }
-    if (!g_texture) {
-
-        TextureTableEntry* tex_entry = (TextureTableEntry*)0x252F750;
-        while (tex_entry->ptrD3Texture != NULL) {
-            if (tex_entry->ptrD3Texture->decodeDataPointer == GET_PL_DANTE_TEXTURE_DECODE() && tex_entry->ptrD3Texture->texturePointer) {
-                g_texture          = tex_entry->ptrD3Texture;
-                g_texture_original = g_texture->texturePointer;
-                break;
-            }
-            tex_entry++;
-        }
-    }
-    if (!g_texture) {
-        return;
-    }
-
-    while (InterlockedCompareExchange((volatile unsigned int*)&g_texture->texturePointer, (unsigned int)g_style_textures[style], (unsigned int)g_texture->texturePointer) != (unsigned int)g_style_textures[style]) {
-    }
-    // tp->Release();
-}
-#endif

@@ -12,11 +12,12 @@ public:
 
     std::optional<std::string> on_initialize() const;
 
+
     void on_frame() const;
     void on_draw_ui() const;
     void on_draw_debug_ui() const;
-	void on_draw_custom_imgui_window() const;
-
+	void on_draw_custom_imgui_window();
+    void on_reset(IDirect3DDevice9* pDevice, bool before) const;
     const auto& get_mods() const {
         return m_mods;
     }

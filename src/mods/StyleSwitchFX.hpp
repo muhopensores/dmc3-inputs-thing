@@ -25,11 +25,14 @@ public:
   void on_draw_ui() override;
   // on_draw_debug_ui() is called when debug window shows up
   void on_draw_debug_ui() override;
+
+  void on_reset(IDirect3DDevice9* pDevice, bool before) override;
 private:
 
   // function hook instance for our detour, convinient wrapper 
   // around minhook
   std::unique_ptr<FunctionHook> m_function_hook;
+  std::unique_ptr<FunctionHook> m_set_texture_hook;
 
   int m_sound_effect;
   void* m_sound_file_mem;

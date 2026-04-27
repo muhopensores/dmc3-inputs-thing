@@ -5,30 +5,49 @@
 //#inlcude "YourMod.hpp"
 #include "mods/SimpleMod.hpp"
 #include "mods/QuicksilverShader.hpp"
+#include "mods/UIButton.hpp"
+#include "mods/GamepadsFix.hpp"
+#include "mods/AudioStutterFix.hpp"
+#include "mods/PrintfDebugging.hpp"
+#include "mods/RendererReplace.hpp"
+#include "mods/CustomAlolcator.hpp"
+#include "mods/DebugDraw.hpp"
+#include "mods/InputLog.hpp"
+#include "mods/AreaJump.hpp"
+#if GAMEPLAY_HOOKS
 #include "mods/InertiaThings.hpp"
 #include "mods/StyleSwitchFX.hpp"
 #include "mods/PracticeMode.hpp"
 #include "mods/BulletStop.hpp"
-#include "mods/UIButton.hpp"
-#include "mods/GamepadsFix.hpp"
-#include "mods/InputLog.hpp"
-#include "mods/AudioStutterFix.hpp"
-#include "mods/PrintfDebugging.hpp"
-#include "mods/DebugDraw.hpp"
 #include "mods/RgTimer.hpp"
-#include "mods/NoHeightRestriction.hpp"
 #include "mods/EnemySoulEaterNoInvis.hpp"
+#include "mods/EnemyStates.hpp"
 #include "mods/TurnSpeed.hpp"
 #include "mods/EnemyStepCooldown.hpp"
-#include "mods/EnemyStates.hpp"
+#include "mods/NoHeightRestriction.hpp"
 #include "mods/EnemySpawnRate.hpp"
-#include "mods/CustomAlolcator.hpp"
-#include "mods/RendererReplace.hpp"
-#include "mods/AreaJump.hpp"
+#endif
 //#include "mods/StyleSwitcherInfo.hpp"
 //#include "mods/CameraHack.hpp"
 
-#define GAMEPLAY_HOOKS 1 // NOTE(): set 0 for speedrunner build
+struct TypeIndexer {
+    static int next_index() {
+        static int count = 0;
+        return count++;
+    }
+
+    template<typename T>
+    static int get_index() {
+        static int index = next_index();
+        return index;
+    }
+};
+
+#define ADD_MOD(name)                                  \
+    do {                                               \
+        m_mods.emplace_back(std::make_unique<name>()); \
+        TypeIndexer::get_index<name>();                \
+    } while (0)
 
 Mods::Mods()
 {
@@ -41,70 +60,38 @@ Mods::Mods()
 
 void Mods::load_time_critical_mods() {
 #ifdef DINPUT_HOOK
-	m_mods.emplace_back(std::make_unique<GamepadsFix>());
-#else
-    m_mods.emplace_back(std::make_unique<Mod>());
+	ADD_MOD(GamepadsFix); //m_mods.emplace_back(std::make_unique<GamepadsFix>());
 #endif
-	m_mods.emplace_back(std::make_unique<CustomAlolcator>());
+	ADD_MOD(CustomAlolcator); //m_mods.emplace_back(std::make_unique<CustomAlolcator>());
 	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
 
 void Mods::load_mods() {
-#if 1
-	m_mods.emplace_back(std::make_unique<QuicksilverShader>());
-	m_mods.emplace_back(std::make_unique<AudioStutterFix>());
+
+	ADD_MOD(QuicksilverShader); //m_mods.emplace_back(std::make_unique<QuicksilverShader>());
+	ADD_MOD(AudioStutterFix); //m_mods.emplace_back(std::make_unique<AudioStutterFix>());
+    ADD_MOD(UIButton); //m_mods.emplace_back(std::make_unique<UIButton>());
+	ADD_MOD(AreaJump); //m_mods.emplace_back(std::make_unique<AreaJump>());
+    ADD_MOD(InputLog); //m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
+	ADD_MOD(DebugDraw); //m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
+
 #if GAMEPLAY_HOOKS
-	m_mods.emplace_back(std::make_unique<InertiaThings>());
-	m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
-	m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one [5]
-	m_mods.emplace_back(std::make_unique<BulletStop>());
-#else
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
+	ADD_MOD(InertiaThings); //m_mods.emplace_back(std::make_unique<InertiaThings>());
+	ADD_MOD(StyleSwitchFX); //m_mods.emplace_back(std::make_unique<StyleSwitchFX>());
+	ADD_MOD(PracticeMode); //m_mods.emplace_back(std::make_unique<PracticeMode>()); // NOTE(): dont move this one [5]
+	ADD_MOD(BulletStop); //m_mods.emplace_back(std::make_unique<BulletStop>());
+    ADD_MOD(RgTimer); //m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
+	ADD_MOD(EnemySoulEaterNoInvis); //m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
+	ADD_MOD(EnemyStates); //m_mods.emplace_back(std::make_unique<EnemyStates>());
+	ADD_MOD(TurnSpeed); //m_mods.emplace_back(std::make_unique<TurnSpeed>());
+	ADD_MOD(EnemyStepCooldown); //m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
+	ADD_MOD(NoHeightRestriction); //m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
+    ADD_MOD(EnemySpawnRate); //m_mods.emplace_back(std::make_unique<EnemySpawnRate>()); // ldk
 #endif // !GAMEPLAY_HOOKS
-	m_mods.emplace_back(std::make_unique<UIButton>());
-#if GAMEPLAY_HOOKS
-	m_mods.emplace_back(std::make_unique<InputLog>()); //NOTE(): dont move this one [8]
-	m_mods.emplace_back(std::make_unique<DebugDraw>()); //NOTE(): dont move this one [9]
-    m_mods.emplace_back(std::make_unique<RgTimer>()); //NOTE(): dont move this one [10]
-	m_mods.emplace_back(std::make_unique<EnemySoulEaterNoInvis>());
-	m_mods.emplace_back(std::make_unique<EnemyStates>());
-	m_mods.emplace_back(std::make_unique<TurnSpeed>());
-	m_mods.emplace_back(std::make_unique<EnemyStepCooldown>());
-	m_mods.emplace_back(std::make_unique<NoHeightRestriction>());
-#else 
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-	m_mods.emplace_back(std::make_unique<Mod>());
-#endif // !GAMEPLAY_HOOKS
-
-	//m_mods.emplace_back(std::make_unique<StyleSwitcherInfo>()); // crashes half the time on boot, will replace
-#if GAMEPLAY_HOOKS
-	m_mods.emplace_back(std::make_unique<EnemySpawnRate>()); // ldk
-#else
-    m_mods.emplace_back(std::make_unique<Mod>());
-#endif
-
-#if GAMEPLAY_HOOKS
-	m_mods.emplace_back(std::make_unique<AreaJump>());
-#else 
-	m_mods.emplace_back(std::make_unique<Mod>());
-#endif // !GAMEPLAY_HOOKS
-
-
-#endif
 
 #ifndef _NDEBUG
 	//m_mods.emplace_back(std::make_unique<PrintfDebugging>());
 #endif // _DEBUG
-	//m_mods.emplace_back(std::make_unique<CameraHack>());
-	//m_mods.emplace_back(std::make_unique<YourMod>());
 }
 
 std::optional<std::string> Mods::on_initialize() const {
@@ -152,23 +139,30 @@ void Mods::on_draw_ui() const {
     }
 }
 
+template<typename T>
+T* get_raw_pointer(Mods* mods) {
+    return dynamic_cast<T*>(mods->m_mods[TypeIndexer::get_index<T>()].get());
+}
 
-void Mods::on_draw_custom_imgui_window() const {
-    PracticeMode* p = dynamic_cast<PracticeMode*>(m_mods[6].get()); // epic footguns akimbo
-    InputLog* l     = dynamic_cast<InputLog*>(m_mods[9].get());     // epic footguns akimbo part2
-    DebugDraw* d    = dynamic_cast<DebugDraw*>(m_mods[10].get());   // epic footguns akimbo part3
-    RgTimer* t      = dynamic_cast<RgTimer*>(m_mods[11].get());
+template<typename T>
+void custom_imgui_window(Mods* mods) {
+    T* ptr = get_raw_pointer<T>(mods);
+    if (ptr) {
+        ptr->custom_imgui_window();
+    }
+}
 
-    if (p) {
-        p->custom_imgui_window();
-    }
-    if (l) {
-        l->custom_imgui_window();
-    }
-    if (d) {
-        d->custom_imgui_window();
-    }
-    if (t) {
-        t->custom_imgui_window();
+void Mods::on_draw_custom_imgui_window() {
+#if GAMEPLAY_HOOKS
+    custom_imgui_window<PracticeMode>(this);
+    custom_imgui_window<RgTimer>(this);
+#endif
+    custom_imgui_window<InputLog>(this);
+    custom_imgui_window<DebugDraw>(this);
+}
+
+void Mods::on_reset(IDirect3DDevice9* pDevice, bool before) const {
+    for (const auto& mod : m_mods) {
+        mod->on_reset(pDevice, before);
     }
 }

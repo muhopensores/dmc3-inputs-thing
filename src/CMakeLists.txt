@@ -74,6 +74,12 @@ set(IMGUI_SRC
     fw-imgui/imgui_impl_dx9.cpp
     fw-imgui/imgui_impl_win32.h
     fw-imgui/imgui_impl_win32.cpp
+    fw-imgui/sm.cpp
+    fw-imgui/gs.cpp
+    fw-imgui/ts.cpp
+    fw-imgui/rg.cpp
+    fw-imgui/qs.cpp
+    fw-imgui/dg.cpp
 )
 
 set(UTILITY_SRC
@@ -133,48 +139,33 @@ source_group("Framework" FILES ${FRAMEWORK_SRC})
 
 #string(REGEX REPLACE "/W0" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-add_library(${CMAKE_PROJECT_NAME} SHARED
-            Main.cpp
-            LicenseStrings.hpp
-            ${SDK_SRC}
-            ${MODS_SRC}
-            ${HOOKS_SRC}
-            ${IMGUI_SRC}
-            ${UTILITY_SRC}
-            ${FRAMEWORK_SRC}
+set(COMMON_SRC
+    Main.cpp
+    LicenseStrings.hpp
+    ${SDK_SRC}
+    ${MODS_SRC}
+    ${HOOKS_SRC}
+    ${IMGUI_SRC}
+    ${UTILITY_SRC}
+    ${FRAMEWORK_SRC}
 )
 
-#target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 rpc)
-#target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 WickedEngine_Windows d3d12 dxgi)
-target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer legacy_stdio_definitions)
-target_compile_features(${CMAKE_PROJECT_NAME} PUBLIC cxx_std_17)
+function(configure_target TARGET_NAME OUTPUT_NAME EXTRA_DEFINES)
+    add_library(${TARGET_NAME} SHARED ${COMMON_SRC})
 
-include_directories(${CMAKE_PROJECT_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME dinput8)
-target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DINPUT_HOOK DINPUT_MODE)
-if(DEVELOPER_MODE)
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)
-    target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC /EHa)
-endif()
+    target_link_libraries(${TARGET_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer legacy_stdio_definitions)
+    target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
-add_library(dsound SHARED
-            Main.cpp
-            LicenseStrings.hpp
-            ${SDK_SRC}
-            ${MODS_SRC}
-            ${HOOKS_SRC}
-            ${IMGUI_SRC}
-            ${UTILITY_SRC}
-            ${FRAMEWORK_SRC}
-)
+    include_directories(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
+    target_compile_definitions(${TARGET_NAME} PUBLIC ${EXTRA_DEFINES})
+    if(DEVELOPER_MODE)
+        target_compile_definitions(${TARGET_NAME} PUBLIC DEVELOPER)
+        target_compile_options(${TARGET_NAME} PUBLIC /EHa)
+    endif()
+endfunction()
 
-target_link_libraries(dsound PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL2main SDL2 meshoptimizer legacy_stdio_definitions)
-target_compile_features(dsound PUBLIC cxx_std_17)
-
-include_directories(dsound ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(dsound PROPERTIES OUTPUT_NAME dsound)
-target_compile_definitions(dsound PUBLIC DSOUND_MODE)
-if(DEVELOPER_MODE)
-    target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC DEVELOPER)
-    target_compile_options(${CMAKE_PROJECT_NAME} PUBLIC /EHa)
-endif()
+configure_target(${CMAKE_PROJECT_NAME} dinput8 "DINPUT_HOOK;DINPUT_MODE")
+configure_target(dsound dsound "DSOUND_MODE")
+configure_target(dinput8_speedrun dinput8_speedrun "DINPUT_HOOK;DINPUT_MODE;GAMEPLAY_HOOKS=0")
+configure_target(dsound_speedrun dsound_speedrun "DSOUND_MODE;GAMEPLAY_HOOKS=0")

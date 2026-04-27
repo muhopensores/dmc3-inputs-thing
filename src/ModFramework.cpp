@@ -171,6 +171,7 @@ void ModFramework::on_reset() {
     ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui_ImplDX9_InvalidateDeviceObjects();
+    m_mods->on_reset(get_d3d9_device(), true);
     // ImGui_ImplDX9_InvalidateDeviceObjects();
     // Crashes if we don't release it at this point.
     // cleanup_render_target();
@@ -414,6 +415,8 @@ bool ModFramework::initialize() {
         spdlog::error("Failed to initialize ImGui.");
         return false;
     }
+
+    m_mods->on_reset(device, false);
 
     // NOTE(): this font stuff needs to be done on init
     static const ImWchar icons_ranges[] = {0x20, 0xFF, ICON_MIN_PF, ICON_MAX_PF, 0}; // Will not be copied by AddFont* so keep in scope.

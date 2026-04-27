@@ -36,72 +36,10 @@ __declspec(naked) void c_cusomize_detour() {
 }
 
 
-struct FileInfo {
-    FILE* handle;
-    std::string path;
-};
-std::string to_backslash_string(const std::filesystem::path& p) {
-    std::string result = p.string();
-    std::replace(result.begin(), result.end(), '/', '\\');
-    return result;
-}
-// Function to load a single .ogg file
-std::optional<FileInfo> loadOggFile(const std::filesystem::path& filepath) {
-    std::string abspath = to_backslash_string(filepath);
-    const char* filename = abspath.c_str();
-    auto handle = ::fopen(filename, "rb");
-    if (!handle) {
-        return std::nullopt;
-    }
-    return FileInfo {
-        handle,
-        std::string{filename}
-    };
-}
-
-using FileStore = std::unordered_map<std::string, FILE*>;
-// Main function to load all .ogg files from a directory
-void loadOggFilesParallel(const std::string& directoryPath, FileStore* outFileStore) {
-    namespace fs = std::filesystem;
-    std::vector<fs::path> oggPaths;
-    std::vector<std::future<std::optional<FileInfo>>> futures;
-
-    // Step 1: Scan directory for .ogg files
-    if (!fs::exists(directoryPath) || !fs::is_directory(directoryPath)) {
-        throw std::runtime_error("Directory not found or not accessible: " + directoryPath);
-    }
-
-    for (const auto& entry : fs::directory_iterator(directoryPath)) {
-        if (entry.is_regular_file() && entry.path().extension() == ".ogg") {
-            oggPaths.push_back(entry.path());
-        }
-    }
-
-    spdlog::info("Found {} .ogg files. Loading in parallel...", oggPaths.size());
-
-    // Step 2: Launch async tasks
-    for (const auto& path : oggPaths) {
-        futures.push_back(std::async(std::launch::async, loadOggFile, fs::absolute(path)));
-    }
-
-    // Step 3: Collect results
-    for (auto& future : futures) {
-        auto result = future.get(); // Wait and get result
-        if (result) {
-            auto [handle, path] = result.value();
-            outFileStore->insert(std::pair<std::string,FILE*>(path, handle));
-        }
-    }
-
-    spdlog::info("Successfully loaded {} files.",outFileStore->size());
-}
-
-static std::unique_ptr<FileStore> g_file_store;
-static std::unique_ptr<FunctionHook> g_fopen_hook;
 
 FILE* __cdecl fopen_ours_real(const char* FileName, const char* Mode) {
-    FILE* ret = g_file_store->at(FileName);
-    return ret;
+    //FILE* ret = g_file_store->at(FileName);
+    return nullptr;
 }
 
 static uintptr_t fopen_jmp_back {};
@@ -119,20 +57,6 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	if (init) {
 		return Mod::on_initialize();
 	}
-#if 0 // TODO(): removed due to custom snd.drv issues
-	HMODULE snd = GetModuleHandle("snd.drv");
-	if (!snd) {
-		spdlog::info("[AudioStutterFix]: snd.drv not found\n");
-		printf("[AudioStutterFix]: snd.drv not found\n");
-		return Mod::on_initialize();
-	}
-	FARPROC snd_proc = GetProcAddress(snd, "IsSndDrvSexy");
-	if (!snd_proc) {
-		spdlog::info("[AudioStutterFix]: not using custom snd.drv, skipping audio fixes.\n");
-		printf("[AudioStutterFix]: not using custom snd.drv, skipping audio fixes.\n");
-		return Mod::on_initialize();
-	}
-#endif
 	/* patching out: 
 	6A 64 - push 64
 	FF D7 - call edi
@@ -143,6 +67,8 @@ std::optional<std::string> AudioStutterFix::on_initialize() {
 	std::fill(bytes.begin(), bytes.end(), 0x90);
 	m_disable_sleep1 = new Patch(0x00404987, bytes, true);
 	m_disable_sleep2 = new Patch(0x00404998, bytes, true);
+    
+    return Mod::on_initialize();
 #if 0 // TODO(): removed due to custom snd.drv issues
 	game_snd_channels = (Devil3BgmChannels*)0x0832DBC;
 	cCustomize_hack = new FunctionHook(0x0044418B, &c_cusomize_detour);

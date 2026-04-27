@@ -206,7 +206,7 @@ BOOL APIENTRY DllMain(HMODULE handle, DWORD reason, LPVOID reserved) {
         }
 #endif
 
-#if 1
+#if 0
         g_renderer_replace = new RendererReplace();
         g_renderer_replace->on_initialize();
 #endif

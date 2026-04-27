@@ -1214,10 +1214,10 @@ std::vector<WORD> g_index_data_world;
 bool g_skipdraw_static{false};
 
 int g_bcount{24};
-int g_bindex_0{0};
+int g_bindex_0{1};
 int g_bindex_1{0};
-int g_bindex_2{1};
-int g_bindex_3{2};
+int g_bindex_2{4};
+int g_bindex_3{3};
 
 static constexpr std::array<std::array<int, 4>, 6> g_bindex_presets{{
     {{0, 0, 1, 2}},

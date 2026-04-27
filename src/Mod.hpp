@@ -18,6 +18,8 @@
 
 #include "ModFramework.hpp"
 
+struct IDirect3DDevice9;
+
 class IModValue {
 public:
     using Ptr = std::unique_ptr<IModValue>;
@@ -384,6 +386,8 @@ public:
 
     virtual void on_config_load(const utility::Config& cfg){};
     virtual void on_config_save(utility::Config& cfg){};
+
+    virtual void on_reset(IDirect3DDevice9* pDevice, bool before) {};
 
     // Game-specific callbacks
     /*
