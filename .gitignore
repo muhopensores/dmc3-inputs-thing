@@ -1,4 +1,5 @@
 build86/
+build86_shipping/
 lsp/
 compile_commands.json
 .clangd/

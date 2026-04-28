@@ -310,7 +310,7 @@ void ModFramework::draw_about() {
     ImGui::TreePush("About");
 
     ImGui::Text("Authors: Siyan, endneo, cheburrat0r, deepdarkkapustka");
-    ImGui::Text("contrib: ProjectXsent, APSandman");
+    ImGui::Text("contrib: ProjectXsent, APSandman, MechaMike");
 
     ImGui::Text("https://github.com/muhopensores/dmc3-inputs-thing/");
     ImGui::NewLine();
