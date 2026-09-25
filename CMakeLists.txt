@@ -1,52 +1,173 @@
-cmake_minimum_required(VERSION 3.1)
+set(MODS_SRC
+    mods/SimpleMod.hpp
+    mods/RendererReplace.hpp
+    mods/RendererReplace.cpp
+    mods/CustomAlolcator.hpp
+    mods/CustomAlolcator.cpp
+    mods/EnemySpawnRate.hpp
+    mods/EnemySpawnRate.cpp
+    mods/RgTimer.hpp
+    mods/RgTimer.cpp
+    mods/DebugDraw.hpp
+    mods/DebugDraw.cpp
+    mods/PrintfDebugging.hpp
+    mods/PrintfDebugging.cpp
+    mods/AudioStutterFix.hpp
+    mods/AudioStutterFix.cpp
+ #   mods/CameraHack.hpp
+ #   mods/CameraHack.cpp
+    mods/InputLog.hpp
+    mods/InputLog.cpp
+    mods/GamepadsFix.hpp
+    mods/GamepadsFix.cpp
+    mods/UIButton.hpp
+    mods/UIButton.cpp
+    mods/BulletStop.hpp
+    mods/BulletStop.cpp
+    mods/PracticeMode.hpp
+    mods/PracticeMode.cpp
+    mods/StyleSwitchFX.hpp
+    mods/StyleSwitchFX.cpp
+    mods/InertiaThings.hpp
+    mods/InertiaThings.cpp
+    mods/QuicksilverShader.hpp
+    mods/QuicksilverShader.cpp
+    mods/SimpleMod.cpp
+    mods/StyleSwitcherInfo.hpp 
+    mods/StyleSwitcherInfo.cpp 
+    mods/NoHeightRestriction.hpp 
+    mods/NoHeightRestriction.cpp 
+    mods/EnemySoulEaterNoInvis.hpp 
+    mods/EnemySoulEaterNoInvis.cpp 
+    mods/TurnSpeed.hpp 
+    mods/TurnSpeed.cpp 
+    mods/EnemyStepCooldown.hpp 
+    mods/EnemyStepCooldown.cpp 
+    mods/EnemyStates.hpp 
+    mods/EnemyStates.cpp 
+    mods/AreaJump.hpp
+    mods/AreaJump.cpp
+)
 
-project(DMC3_SRCNEXT)
+set(HOOKS_SRC
+    DInputHook.hpp
+    DInputHook.cpp
+    D3D9Hook.hpp
+    D3D9Hook.cpp
+    WindowsMessageHook.hpp
+    WindowsMessageHook.cpp
+)
 
-add_compile_options(/MT)
+set(SDK_SRC
+    sdk/ReClass.hpp
+    sdk/ReClass_Internal.hpp
+    sdk/Enums_Internal.hpp
+    sdk/Offsets.hpp
+    sdk/Math.hpp
+    sdk/Devil3.hpp
+    sdk/Devil3.cpp
+    sdk/VoxObj.hpp
+)
 
-include_directories(${CMAKE_SOURCE_DIR}/dependencies)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/imgui)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/minhook/include)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/spdlog/include)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/glm)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/DebugDraw)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/meshoptimizer/src)
-#temp
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/WickedEngine)
+set(IMGUI_SRC
+    fw-imgui/imgui_impl_dx9.h
+    fw-imgui/imgui_impl_dx9.cpp
+    fw-imgui/imgui_impl_win32.h
+    fw-imgui/imgui_impl_win32.cpp
+    fw-imgui/sm.cpp
+    fw-imgui/gs.cpp
+    fw-imgui/ts.cpp
+    fw-imgui/rg.cpp
+    fw-imgui/qs.cpp
+    fw-imgui/dg.cpp
+)
 
-include_directories($ENV{DXSDK_DIR}/Include)
-link_directories("$ENV{DXSDK_DIR}/Lib/x86")
-link_directories("${CMAKE_SOURCE_DIR}/dependencies/SDL2/lib/x86")
+set(UTILITY_SRC
+    utility/ChronoAlias.hpp
+    utility/Compressed.hpp
+    utility/Compressed.cpp
+    utility/Address.hpp
+    utility/Address.cpp
+    utility/Config.hpp
+    utility/Config.cpp
+    utility/FunctionHook.hpp
+    utility/FunctionHook.cpp
+    utility/Memory.hpp
+    utility/Memory.cpp
+    utility/Module.hpp
+    utility/Module.cpp
+    utility/Patch.hpp
+    utility/Patch.cpp
+    utility/Pattern.hpp
+    utility/Pattern.cpp
+    utility/Scan.hpp
+    utility/Scan.cpp
+    utility/String.hpp
+    utility/String.cpp
+    utility/FixedQueue.hpp
+    utility/FixedQueue.cpp
+    utility/ExceptionHandler.hpp
+    utility/ExceptionHandler.cpp
+    utility/Thread.hpp
+    utility/Thread.cpp
+    utility/SDLGamepad.hpp
+    utility/MemArena.hpp
+    utility/MemArena.cpp
+    #utility/tgc.h
+    #utility/tgc.c
+)
 
-# set output directories
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:threadSafeInit- /MP")
+set(FRAMEWORK_SRC
+    PromptFontGlyphs.hpp
+    PromptFontCompressed.cpp
+    Mod.hpp
+    Mods.hpp
+    Mods.cpp
+    ModFramework.hpp
+    ModFramework.cpp
+    Config.hpp
+#    Effekseer_DX9.h
+#    Effekseer_DX9.cpp
+)
 
-foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
-    string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/bin)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/lib)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/lib)
-endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
+source_group("imgui" FILES ${IMGUI_SRC})
+source_group("Hooks" FILES ${HOOKS_SRC})
+source_group("Mods" FILES ${MODS_SRC})
+source_group("SDK" FILES ${SDK_SRC})
+source_group("Utility" FILES ${UTILITY_SRC})
+source_group("Framework" FILES ${FRAMEWORK_SRC})
 
-# Disable exceptions
-# string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+#string(REGEX REPLACE "/W0" "/W3" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+set(COMMON_SRC
+    Main.cpp
+    LicenseStrings.hpp
+    ${SDK_SRC}
+    ${MODS_SRC}
+    ${HOOKS_SRC}
+    ${IMGUI_SRC}
+    ${UTILITY_SRC}
+    ${FRAMEWORK_SRC}
+)
 
-set(LOG_FILENAME "${CMAKE_PROJECT_NAME}_framework_log.txt")
-set(LOG_ENTRY "${CMAKE_PROJECT_NAME} ModFramework entry")
-set(CONFIG_FILENAME "${CMAKE_PROJECT_NAME}_fw_config.txt")
+function(configure_target TARGET_NAME OUTPUT_NAME EXTRA_DEFINES)
+    add_library(${TARGET_NAME} SHARED ${COMMON_SRC})
 
-configure_file(Config.hpp.in ${CMAKE_SOURCE_DIR}/src/Config.hpp @ONLY)
-add_compile_options(/W0)
-#add_compile_options(/MT)
+    target_link_libraries(${TARGET_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL3_test SDL3 meshoptimizer legacy_stdio_definitions)
+    target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
-# Statically compile runtime
-#string(REGEX REPLACE "/MD" "/MT" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    include_directories(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
+    set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
+    target_compile_definitions(${TARGET_NAME} PUBLIC ${EXTRA_DEFINES})
+    if(DEVELOPER_MODE)
+        target_compile_definitions(${TARGET_NAME} PUBLIC DEVELOPER)
+        target_compile_options(${TARGET_NAME} PUBLIC /EHa)
+    endif()
+endfunction()
 
-add_subdirectory(dependencies)
-add_subdirectory(src)
+configure_target(${CMAKE_PROJECT_NAME} dinput8 "DINPUT_HOOK;DINPUT_MODE;GAMEPLAY_HOOKS=1")
+if(BUILD_SHIPPING)
+    configure_target(dsound dsound "DSOUND_MODE;GAMEPLAY_HOOKS=1")
+    configure_target(dinput8_speedrun dinput8_speedrun "DINPUT_HOOK;DINPUT_MODE;GAMEPLAY_HOOKS=0")
+    configure_target(dsound_speedrun dsound_speedrun "DSOUND_MODE;GAMEPLAY_HOOKS=0")
+endif()
