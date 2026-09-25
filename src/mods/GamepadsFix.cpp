@@ -3,8 +3,8 @@
 #include "GamepadsFix.hpp"
 #include <vector>
 
-#include <SDL.h>
-#include <SDL_gamecontroller.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_gamepad.h>
 
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
@@ -16,7 +16,8 @@
 static GamepadsFix* g_gamepad_mod_inst_ptr;
 static std::vector<SDLGamepad*> g_gamepads;
 
-bool ifEmulatingXboxController;
+//bool ifEmulatingXboxController;
+bool SDLInputEnabled;
 
 // TODO(): too tired not doing that anytime soon
 class PadVibeStuffStatic
@@ -83,13 +84,15 @@ void GamepadsFix::on_draw_ui() {
 	if (!ImGui::CollapsingHeader(get_name().data())) {
 		return;
 	}
-	ImGui::TextWrapped("Check the following checkbox if you are using or emulating an xbox controller. This will set the default controls to match PS4 so the following fixes are correctly applied. Press save config after, then reset the game. This might also be necessary for other setups but i cba to restart to check. If you have not renamed your ini, this will do nothing.");
-	ImGui::Checkbox("Emulating or using an xbox controller", &ifEmulatingXboxController);
+	//ImGui::TextWrapped("Check the following checkbox if you are using or emulating an xbox controller. This will set the default controls to match PS4 so the following fixes are correctly applied. Press save config after, then reset the game. This might also be necessary for other setups but i cba to restart to check. If you have not renamed your ini, this will do nothing.");
+	//ImGui::Checkbox("Emulating or using an xbox controller", &ifEmulatingXboxController);
+    ImGui::TextWrapped("The SDL input supports most controllers. Enabling this option manually will require you to restart the game. This fix will be automatically disabled if 'dmc3se.ini' has not been either renamed, moved, or deleted.");
+    ImGui::Checkbox("Enable SDL Input", &SDLInputEnabled);
 
-	ImGui::TextWrapped("To get this working rename dmc3se.ini in the game root to something else and restart the game, this would replace dinput8 stuff with SDL2 for better gamepad support. Hooks need to be installed on launch so restart is required.");
+	//ImGui::TextWrapped("To get this working rename dmc3se.ini in the game root to something else and restart the game, this would replace dinput8 stuff with SDL2 for better gamepad support. Hooks need to be installed on launch so restart is required.");
 	ImGui::Text("Window focus: %d", g_framework->get_window_focus());
 
-	ImGui::TextWrapped("You can select what controller to use below, keep in mind this is zero indexed. First controller - 0, second controller - 1 etc.");
+	ImGui::TextWrapped("You can select what controller to use below, keep in mind this is zero indexed (First controller - 0, second controller - 1, etc.).");
 	if (ImGui::InputInt("Gamepad index: ", &m_gamepad_index, 1, 1)) {
 		m_gamepad_index = glm::clamp<int>(m_gamepad_index, 0, g_gamepads.size() - 1);
 	}
@@ -127,11 +130,11 @@ void GamepadsFix::on_draw_ui() {
 				controller->sensorEnabled = true;
 				if (controller->hasGyroscope()) {
 					ImGui::Checkbox("Gyroscope", &controller->gyroActive);
-					controller->setSensor(SDL_SENSOR_GYRO, (SDL_bool)controller->gyroActive);
+					controller->setSensor(SDL_SENSOR_GYRO, controller->gyroActive);
 				}
 				if (controller->hasAccelerometer()) {
 					ImGui::Checkbox("Accelerometer", &controller->accelActive);
-					controller->setSensor(SDL_SENSOR_ACCEL, (SDL_bool)controller->accelActive);
+					controller->setSensor(SDL_SENSOR_ACCEL, controller->accelActive);
 				}
 			}
 
@@ -207,7 +210,7 @@ void GamepadsFix::on_draw_ui() {
 			ImGui::NewLine();
 			// Print the DPad Buttons, and color them if they are pressed.   
 			// Using the class, to query buttons you check the state struct.
-			ImGui::TextColored(color, "Shoulder Buttons and Stick Clicks");
+			ImGui::TextColored(color, "Shoulder Buttons, Triggers and Stick Clicks");
 			if (controller->state.LeftShoulder) {
 				ImGui::TextColored(pressed, "Left Shoulder");
 			}
@@ -217,6 +220,16 @@ void GamepadsFix::on_draw_ui() {
 				ImGui::TextColored(pressed, "Right Shoulder");
 			}
 			else { ImGui::Text("Right Shoulder"); }
+
+			if (controller->state.LeftTrigger) {
+				ImGui::TextColored(pressed, "Left Trigger");
+			}
+			else { ImGui::Text("Left Trigger"); }
+
+			if (controller->state.RightTrigger) {
+				ImGui::TextColored(pressed, "Right Trigger");
+			}
+			else { ImGui::Text("Right Trigger"); }
 
 			if (controller->state.LeftStickClick) {
 				ImGui::TextColored(pressed, "Left Stick");
@@ -445,35 +458,42 @@ struct dummy_dinput8_device {
 		
 		//dpad
 		//r 9000 u 0 l 27000 d 18000
+		//ur 4500 dr 13500 ul 31500 dl 22500
+
+		bool DPadUp			= controller->state.DPadUp;
+		bool DPadRight		= controller->state.DPadRight;
+		bool DPadDown		= controller->state.DPadDown;
+		bool DPadLeft		= controller->state.DPadLeft;
+
 		lpvData->rgdwPOV[0] = -1;
-		
-		if (controller->state.DPadUp) {
-			lpvData->rgdwPOV[0] = 0;
-		}
-		if (controller->state.DPadDown) {
-			lpvData->rgdwPOV[0] = 18000;
-		}
-		if (controller->state.DPadLeft) {
-			lpvData->rgdwPOV[0] = 27000;
-		}
-		if (controller->state.DPadRight) {
-			lpvData->rgdwPOV[0] = 9000;
-		}
-		if (controller->state.DPadUp && controller->state.DPadRight) { // DPad Up + Right
-    		lpvData->rgdwPOV[0] = 4500;
-		}
-		if (controller->state.DPadDown && controller->state.DPadRight) { // DPad Down + Right
-    		lpvData->rgdwPOV[0] = 13500;
-		}
-		if (controller->state.DPadDown && controller->state.DPadLeft) { // Dpad Down + Left
-    		lpvData->rgdwPOV[0] = 22500;
-		}
-		if (controller->state.DPadUp && controller->state.DPadLeft) { // DPad Up + Left
-    		lpvData->rgdwPOV[0] = 31500;
-		}
+
+		if (DPadUp && DPadRight) {
+			lpvData->rgdwPOV[0] = 4500;
+        }
+		else if (DPadDown && DPadRight) {
+			lpvData->rgdwPOV[0] = 13500;
+        }
+		else if (DPadDown && DPadLeft) {
+            lpvData->rgdwPOV[0] = 22500;
+        }
+		else if (DPadUp && DPadLeft) {
+            lpvData->rgdwPOV[0] = 31500;
+        }
+		else if (DPadUp) {
+            lpvData->rgdwPOV[0] = 0;
+        }
+		else if (DPadRight) {
+            lpvData->rgdwPOV[0] = 9000;
+        }
+		else if (DPadDown) {
+            lpvData->rgdwPOV[0] = 18000;
+        }
+		else if (DPadLeft) {
+            lpvData->rgdwPOV[0] = 27000;
+        }
 
 		lpvData->lX = controller->state.RightStick.y >> 8;
-		lpvData->lY = controller->state.RightStick.x >> 8; // What the fuck capcom
+		lpvData->lY = controller->state.RightStick.x >> 8;
 		lpvData->lZ  = controller->state.LeftStick.y >> 8;
 		lpvData->lRx = controller->state.LeftStick.x >> 8;
 		lpvData->lRy = 0;
@@ -510,35 +530,39 @@ struct dummy_dinput8_device {
 #endif // _DEBUG
 
 		while (SDL_PollEvent(&sdl_evt)) {
-			if (sdl_evt.type == SDL_CONTROLLERDEVICEADDED) {
-				spdlog::info("[dummy_dinput8_device::Poll()] Controller connected: {}", sdl_evt.cdevice.which);
+			// NOTE(): SDL_CONTROLLERDEVICEADDED/REMOVED => SDL_EVENT_GAMEPAD_ADDED/REMOVED in SDL3,
+			// and the event field moved from cdevice.which to gdevice.which.
+			if (sdl_evt.type == SDL_EVENT_GAMEPAD_ADDED) {
+				spdlog::info("[dummy_dinput8_device::Poll()] Controller connected: {}", sdl_evt.gdevice.which);
 #ifdef _DEBUG
-				printf("sdl_evt: %d = SDL_CONTROLLERDEVICEADDED\n", sdl_evt.type);
+				printf("sdl_evt: %d = SDL_EVENT_GAMEPAD_ADDED\n", sdl_evt.type);
 #endif
 				bool add_device = true;
 				for (auto& gamepad : g_gamepads) {
-					if (gamepad->id == sdl_evt.cdevice.which) {
+					if (gamepad->id == sdl_evt.gdevice.which) {
 						add_device = false;
 						break;
 					}
 				}
 				if (add_device) {
-					g_gamepads.push_back(new SDLGamepad(sdl_evt.cdevice.which));
+					// NOTE(): SDL3's event.gdevice.which is already the joystick instance ID
+					// that SDL_OpenGamepad() expects, same as before.
+					g_gamepads.push_back(new SDLGamepad(sdl_evt.gdevice.which));
 				}
 			}
 
-			if (sdl_evt.type == SDL_CONTROLLERDEVICEREMOVED) {
+			if (sdl_evt.type == SDL_EVENT_GAMEPAD_REMOVED) {
 #ifdef _DEBUG
-				printf("sdl_evt: %d = SDL_CONTROLLERDEVICEREMOVED\n", sdl_evt.type);
+				printf("sdl_evt: %d = SDL_EVENT_GAMEPAD_REMOVED\n", sdl_evt.type);
 #endif
-				spdlog::info("[dummy_dinput8_device::Poll()] Controller removed: {}", sdl_evt.cdevice.which);
+				spdlog::info("[dummy_dinput8_device::Poll()] Controller removed: {}", sdl_evt.gdevice.which);
 				// Remove the controller from the vector and then delete it. This can probably be handled 
 				// much more efficiently if you simply maintain an array of controllers and delete at the index, or if
 				// handled differently in general, but this is simply one way of doing it with this structure.
 				int popped = 0;
 				SDLGamepad * instance = nullptr;
 				for (int i = 0; i < g_gamepads.size(); i++) {
-					if (g_gamepads[i]->id == sdl_evt.cdevice.which) {
+					if (g_gamepads[i]->id == sdl_evt.gdevice.which) {
 						instance = g_gamepads[i];
 						popped = i;
 						break;
@@ -590,12 +614,18 @@ static IDirectInput** g_game_dinput8_ptr = (IDirectInput**)0x00833238;
 int _cdecl GamepadsFix::Dinput8Create_sub_404BB0(HWND hWnd)
 {
 	spdlog::info("[Dinput8Create_sub_404BB0] hooked Dinput8Create called");
-	SDL_InitSubSystem(SDL_INIT_SENSOR|SDL_INIT_GAMECONTROLLER|SDL_INIT_HAPTIC);
-	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
-	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
+	// NOTE(): SDL_INIT_GAMECONTROLLER => SDL_INIT_GAMEPAD in SDL3.
+	SDL_InitSubSystem(SDL_INIT_SENSOR|SDL_INIT_GAMEPAD|SDL_INIT_HAPTIC);
+	//SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
+	//SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
 	//SDL_SetHint(SDL_HINT_AUTO_UPDATE_JOYSTICKS, "0");
+    SDL_AddGamepadMappingsFromFile("gamecontrollerdb.txt");
 
-	SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+	// NOTE(): SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS is ignored by SDL3 - gamepad face
+	// buttons are always reported positionally now (SOUTH/EAST/WEST/NORTH). Use
+	// SDL_GetGamepadButtonLabel() if you need the physical A/B/X/Y or Cross/Circle/Square/Triangle
+	// label for display purposes.
+	//SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
 	g_gamepads.reserve(CONTROLLERS_RESERVED);
 	*g_game_dinput8_ptr = (IDirectInput*)&di8_dummy;
 	spdlog::info("[Dinput8Create_sub_404BB0] swapping Dinput8Interface ptr inside game memory {}->", (uintptr_t)g_game_dinput8_ptr, (uintptr_t)&di8_dummy);
@@ -605,13 +635,16 @@ int _cdecl GamepadsFix::Dinput8Create_sub_404BB0(HWND hWnd)
 void GamepadsFix::on_config_load(const utility::Config& cfg) {
   bool dmc_ini_exists = _waccess_s(L"dmc3se.ini", 00) != ENOENT;
   if (!dmc_ini_exists) {
-  ifEmulatingXboxController = cfg.get<bool>("emulating_xbox_controller").value_or(true);
-  patchcontrols = Patch::create(0x00405D34, default_controls_bytes(), (ifEmulatingXboxController));
+  //ifEmulatingXboxController = cfg.get<bool>("emulating_xbox_controller").value_or(true);
+  //patchcontrols = Patch::create(0x00405D34, default_controls_bytes(), (ifEmulatingXboxController));
+  SDLInputEnabled = cfg.get<bool>("Enable_SDL_Input").value_or(true);
+  patchcontrols = Patch::create(0x00405D34, default_controls_bytes(), (SDLInputEnabled));
   }
 };
 
 void GamepadsFix::on_config_save(utility::Config& cfg) {
-  cfg.set<bool>("emulating_xbox_controller", ifEmulatingXboxController);
+  //cfg.set<bool>("emulating_xbox_controller", ifEmulatingXboxController);
+  cfg.set<bool>("Enable_SDL_Input", SDLInputEnabled);
 };
 
 #endif
