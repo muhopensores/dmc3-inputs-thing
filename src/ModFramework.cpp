@@ -341,6 +341,10 @@ void ModFramework::draw_about() {
             ImGui::TextWrapped(license::spdlog);
         }
 
+        if (ImGui::CollapsingHeader("SDL3")) {
+            ImGui::TextWrapped(license::SDL3);
+        }
+
         ImGui::TreePop();
     }
 

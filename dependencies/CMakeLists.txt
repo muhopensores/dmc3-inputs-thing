@@ -41,3 +41,17 @@ target_compile_definitions(imgui PUBLIC IMGUI_USER_CONFIG="../src/fw-imgui/imgui
 
 add_subdirectory(DebugDraw)
 add_subdirectory(meshoptimizer)
+
+# sdl3 crap
+set(SDL_SHARED OFF CACHE BOOL "Build shared SDL library" FORCE)
+set(SDL_STATIC ON CACHE BOOL "Build static SDL library" FORCE)
+
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "Build SDL test library" FORCE)
+set(SDL_TESTS OFF CACHE BOOL "Build SDL test programs" FORCE)
+set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+
+set(SDL_AUDIO OFF CACHE BOOL "" FORCE)
+set(SDL_VIDEO OFF CACHE BOOL "" FORCE)
+set(SDL_RENDER OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(SDL)

@@ -153,12 +153,13 @@ set(COMMON_SRC
 function(configure_target TARGET_NAME OUTPUT_NAME EXTRA_DEFINES)
     add_library(${TARGET_NAME} SHARED ${COMMON_SRC})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 SDL3_test SDL3 meshoptimizer legacy_stdio_definitions)
+    target_link_libraries(${TARGET_NAME} PUBLIC imgui minhook glm_static shlwapi D3dx9 d3d9 meshoptimizer legacy_stdio_definitions SDL3::SDL3-static)
     target_compile_features(${TARGET_NAME} PUBLIC cxx_std_17)
 
     include_directories(${TARGET_NAME} ${CMAKE_CURRENT_SOURCE_DIR})
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
     target_compile_definitions(${TARGET_NAME} PUBLIC ${EXTRA_DEFINES})
+    target_compile_definitions(${TARGET_NAME} PRIVATE SDL_STATIC_LIBS)
     if(DEVELOPER_MODE)
         target_compile_definitions(${TARGET_NAME} PUBLIC DEVELOPER)
         target_compile_options(${TARGET_NAME} PUBLIC /EHa)
