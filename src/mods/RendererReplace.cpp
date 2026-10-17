@@ -824,7 +824,7 @@ struct IndexData {
     std::vector<uint16_t> ib;
 };
 
-IndexData make_index_buffer(SomeRenderingData* srd) {
+static IndexData make_index_buffer(SomeRenderingData* srd, uint16_t offset = 0) {
     assert(srd->vert_count);
 #ifndef NDEBUG
     // printf("make_index_buffer() vert_count:%d\n", srd->vert_count);
@@ -991,6 +991,7 @@ static constexpr DWORD vertex_format_dmc3_3d_ffp_skinning = D3DFVF_XYZB4 | D3DFV
 
 struct DIPData {
     std::uint32_t vertex_count_ours;
+    std::uint32_t vertex_count_local;
     std::uint32_t primitive_count_ours;
     std::uint32_t index_count_ours;
     std::uint32_t base_vertex_index;
