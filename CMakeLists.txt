@@ -10,7 +10,7 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/minhook/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/spdlog/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/glm)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/rpclib/include)
-include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL2/include)
+include_directories(${CMAKE_SOURCE_DIR}/dependencies/SDL3/include)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/DebugDraw)
 include_directories(${CMAKE_SOURCE_DIR}/dependencies/meshoptimizer/src)
 #temp
@@ -18,7 +18,7 @@ include_directories(${CMAKE_SOURCE_DIR}/dependencies/meshoptimizer/src)
 
 include_directories($ENV{DXSDK_DIR}/Include)
 link_directories("$ENV{DXSDK_DIR}/Lib/x86")
-link_directories("${CMAKE_SOURCE_DIR}/dependencies/SDL2/lib/x86")
+link_directories("${CMAKE_SOURCE_DIR}/dependencies/SDL3/lib/x86")
 
 # set output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -39,7 +39,7 @@ endforeach(OUTPUTCONFIG CMAKE_CONFIGURATION_TYPES)
 
 set(LOG_FILENAME "${CMAKE_PROJECT_NAME}_framework_log.txt")
 set(LOG_ENTRY "${CMAKE_PROJECT_NAME} ModFramework entry")
-set(CONFIG_FILENAME "${CMAKE_PROJECT_NAME}_fw_config.txt")
+set(CONFIG_FILENAME "${CMAKE_PROJECT_NAME}_config.ini")
 
 configure_file(Config.hpp.in ${CMAKE_SOURCE_DIR}/src/Config.hpp @ONLY)
 add_compile_options(/W0)

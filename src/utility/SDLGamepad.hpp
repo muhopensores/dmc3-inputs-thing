@@ -1,3 +1,9 @@
+#pragma once
+#include <string>
+#include <vector>
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_gamepad.h>
 
 struct SDLGamepadState{
 	// Axis values range from -32768 to 32767
@@ -51,7 +57,9 @@ struct SDLGamepadSensorState {
 };
 
 struct SDLGamepadTouchpadFinger{
-	Uint8 state;
+	// NOTE(): SDL3's SDL_GetGamepadTouchpadFinger() fills a bool* "down" instead
+	// of SDL2's Uint8* state, so this field is now a bool.
+	bool state = false;
 	float x = 0.0f;
 	float y = 0.0f;
 	float pressure = 0.0f;
@@ -64,7 +72,8 @@ struct SDLGamepadTouchpad {
 class SDLGamepad {
 private:
 	std::string name = "";
-	SDL_GameController * controller;
+	// NOTE(): SDL_GameController => SDL_Gamepad in SDL3.
+	SDL_Gamepad * gamepad;
 	int touchpadCount = 0;
 	bool hapticsSupported = false;
 	bool triggerHapticsSupported = false;
@@ -93,45 +102,52 @@ public:
 	bool accelActive = false;
 	bool queryTouchpads = false;
 
-	SDLGamepad(int index){
-		controller = SDL_GameControllerOpen(index);
-		id = SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(controller));
-		name = SDL_GameControllerName(controller);
-		if (SDL_GameControllerRumble(controller, 0, 0, 0) == 0){
+	// NOTE(): in SDL3, SDL_OpenGamepad() takes the joystick instance ID
+	// (SDL_JoystickID), not a device index like SDL_GameControllerOpen() did.
+	// The caller (SDL_EVENT_GAMEPAD_ADDED's event.gdevice.which) already
+	// hands us that instance ID, so this still works unchanged at the call site.
+	SDLGamepad(SDL_JoystickID index){
+		gamepad = SDL_OpenGamepad(index);
+		// SDL_GetGamepadID() replaces SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(...)).
+		id = SDL_GetGamepadID(gamepad);
+		name = SDL_GetGamepadName(gamepad);
+		// SDL_GameControllerRumble()/RumbleTriggers() returned 0 on success (SDL2);
+		// SDL_RumbleGamepad()/RumbleGamepadTriggers() return bool, true on success (SDL3).
+		if (SDL_RumbleGamepad(gamepad, 0, 0, 0)){
 			hapticsSupported = true;
 		}
-		if (SDL_GameControllerRumbleTriggers(controller, 0, 0, 0) == 0){
+		if (SDL_RumbleGamepadTriggers(gamepad, 0, 0, 0)){
 			triggerHapticsSupported = true;
 		}
-		if (SDL_GameControllerHasSensor(controller, SDL_SENSOR_ACCEL) || SDL_GameControllerHasSensor(controller, SDL_SENSOR_GYRO)){
+		if (SDL_GamepadHasSensor(gamepad, SDL_SENSOR_ACCEL) || SDL_GamepadHasSensor(gamepad, SDL_SENSOR_GYRO)){
 			sensorSupported = true;
-			if (SDL_GameControllerHasSensor(controller, SDL_SENSOR_ACCEL)){
+			if (SDL_GamepadHasSensor(gamepad, SDL_SENSOR_ACCEL)){
 				accelSupported = true;
 			}
-			if (SDL_GameControllerHasSensor(controller, SDL_SENSOR_GYRO)){
+			if (SDL_GamepadHasSensor(gamepad, SDL_SENSOR_GYRO)){
 				gyroSupported = true;
 			}
 		}
-		touchpadCount = SDL_GameControllerGetNumTouchpads(controller);
+		touchpadCount = SDL_GetNumGamepadTouchpads(gamepad);
 		if (touchpadCount){
 			touchpadSupported = true;
 			touchpads.resize(touchpadCount);
 			for (int i = 0; i < touchpadCount; i++){
-				touchpads[i].fingers.resize(SDL_GameControllerGetNumTouchpadFingers(controller, i));
+				touchpads[i].fingers.resize(SDL_GetNumGamepadTouchpadFingers(gamepad, i));
 			}
 		}
 	}
 
 	~SDLGamepad(){
-		SDL_GameControllerClose(controller);
+		SDL_CloseGamepad(gamepad);
 	}
 
 	std::string getName(){
 		return name;
 	}
 
-	SDL_GameController * getController(){
-		return controller;
+	SDL_Gamepad * getController(){
+		return gamepad;
 	}
 
 	int getTouchpadCount(){
@@ -163,10 +179,11 @@ public:
 	}
 
 	bool hasLED(){
-		return SDL_GameControllerHasLED(controller);
+		return SDL_GetGamepadProperties(gamepad);
 	}
 
-	void setSensor(SDL_SensorType type, SDL_bool active){
+	// NOTE(): SDL_bool is gone in SDL3, everything just uses plain bool now.
+	void setSensor(SDL_SensorType type, bool active){
 		if (type == SDL_SENSOR_GYRO){
 			gyroActive = active;
 		}
@@ -174,7 +191,7 @@ public:
 			accelActive = active;
 		}
 		sensorEnabled = (gyroActive || accelActive);
-		SDL_GameControllerSetSensorEnabled(controller, type, active);
+		SDL_SetGamepadSensorEnabled(gamepad, type, active);
 	}
 
 	void setTouchpadSensing(bool active){
@@ -187,11 +204,14 @@ public:
 		if (queryTouchpads){
 			for (int index = 0; index < touchpadCount; index++){
 				for (int finger = 0; finger < touchpads[index].fingers.size(); finger++){
-					SDL_GameControllerGetTouchpadFinger(controller, index, finger,
-						&touchpads[index].fingers[finger].state,
+					// NOTE(): the "state" out-param became a bool* "down" in SDL3.
+					bool down = false;
+					SDL_GetGamepadTouchpadFinger(gamepad, index, finger,
+						&down,
 						&touchpads[index].fingers[finger].x,
 						&touchpads[index].fingers[finger].y,
 						&touchpads[index].fingers[finger].pressure);
+					touchpads[index].fingers[finger].state = down;
 				}
 			}
 		}
@@ -201,48 +221,52 @@ public:
 		state = SDLGamepadState();
 		sensor_state = SDLGamepadSensorState();
 		//DPad buttons
-		state.DPadUp = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_UP);
-		state.DPadDown = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_DOWN);
-		state.DPadLeft = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_LEFT);
-		state.DPadRight = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_DPAD_RIGHT);
+		state.DPadUp = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP);
+		state.DPadDown = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+		state.DPadLeft = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+		state.DPadRight = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
 		//Face Buttons (based on Xbox controller layout)
-		state.A = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_A);
-		state.B = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_B);
-		state.X = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_X);
-		state.Y = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_Y);
+		// NOTE(): SDL3 renamed the face buttons to positional names:
+		// A -> SOUTH, B -> EAST, X -> WEST, Y -> NORTH.
+		state.A = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_SOUTH);
+		state.B = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_EAST);
+		state.X = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_WEST);
+		state.Y = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_NORTH);
 		// Start, Back, and Guide
-		state.Start = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_START);
-		state.Back = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_BACK);
-		state.Guide = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_GUIDE);
+		state.Start = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_START);
+		state.Back = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_BACK);
+		state.Guide = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_GUIDE);
 		//Left Click and Right Click
-		state.LeftStickClick = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSTICK);
-		state.RightStickClick = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSTICK);
+		state.LeftStickClick = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+		state.RightStickClick = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
 		//Paddles 1-4
-		state.Paddle1 = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_PADDLE1);
-		state.Paddle2 = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_PADDLE2);
-		state.Paddle3 = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_PADDLE3);
-		state.Paddle4 = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_PADDLE4);
+		// NOTE(): PADDLE1 (upper-left) -> LEFT_PADDLE1, PADDLE2 (upper-right) -> RIGHT_PADDLE1,
+		// PADDLE3 (lower-left) -> LEFT_PADDLE2, PADDLE4 (lower-right) -> RIGHT_PADDLE2.
+		state.Paddle1 = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_PADDLE1);
+		state.Paddle2 = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1);
+		state.Paddle3 = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_PADDLE2);
+		state.Paddle4 = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2);
 		//Touchpad Button and Misc (Xbox Share button, Switch Pro Capture button, and Mic button for PS4/PS5 controllers)
-		state.Touchpad = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_TOUCHPAD);
-		state.Misc = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_MISC1);
+		state.Touchpad = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_TOUCHPAD);
+		state.Misc = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_MISC1);
 		//Left and Right Shoulder
-		state.LeftShoulder = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_LEFTSHOULDER);
-		state.RightShoulder = SDL_GameControllerGetButton(controller, SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
+		state.LeftShoulder = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+		state.RightShoulder = SDL_GetGamepadButton(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
 		// Axis values for the left and right stick
-		state.LeftStick.x  = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTX)) / float(SDL_JOYSTICK_AXIS_MAX);
-		state.LeftStick.y  = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_LEFTY)) / float(SDL_JOYSTICK_AXIS_MAX);
-		state.RightStick.x = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTX)) / float(SDL_JOYSTICK_AXIS_MAX);
-		state.RightStick.y = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_RIGHTY)) / float(SDL_JOYSTICK_AXIS_MAX);
+		state.LeftStick.x  = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_LEFTX);
+		state.LeftStick.y  = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_LEFTY);
+		state.RightStick.x = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_RIGHTX);
+		state.RightStick.y = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_RIGHTY);
 		//Left and Right Trigger
-		state.LeftTrigger = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERLEFT)) / float(SDL_JOYSTICK_AXIS_MAX);
-		state.RightTrigger = SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT);//float(SDL_GameControllerGetAxis(controller, SDL_CONTROLLER_AXIS_TRIGGERRIGHT)) / float(SDL_JOYSTICK_AXIS_MAX);
+		state.LeftTrigger = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+		state.RightTrigger = SDL_GetGamepadAxis(gamepad, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
 
 		if (sensorEnabled){
 			if (accelActive){
-				SDL_GameControllerGetSensorData(controller, SDL_SENSOR_ACCEL, sensor_state.Accelerometer, 3);
+				SDL_GetGamepadSensorData(gamepad, SDL_SENSOR_ACCEL, sensor_state.Accelerometer, 3);
 			}
 			if (gyroActive){
-				SDL_GameControllerGetSensorData(controller, SDL_SENSOR_GYRO, sensor_state.Gyroscope, 3);
+				SDL_GetGamepadSensorData(gamepad, SDL_SENSOR_GYRO, sensor_state.Gyroscope, 3);
 			}
 		}  
 		pollTouchpad();
@@ -251,18 +275,18 @@ public:
 	// left and right values go from 0.0 to 1.0, while duration is in ms.
 	void Rumble(float left, float right, Uint32 duration){
 		if (hapticsSupported){
-			SDL_GameControllerRumble(controller, 0xFFFF*left, 0xFFFF*right, duration);
+			SDL_RumbleGamepad(gamepad, 0xFFFF*left, 0xFFFF*right, duration);
 		}
 	}
 
 	// left and right trigger values go from 0.0 to 1.0, while duration is in ms.
 	void RumbleTriggers(float left_trigger, float right_trigger, Uint32 duration){
 		if (triggerHapticsSupported){
-			SDL_GameControllerRumbleTriggers(controller, 0xFFFF*left_trigger, 0xFFFF*right_trigger, duration);
+			SDL_RumbleGamepadTriggers(gamepad, 0xFFFF*left_trigger, 0xFFFF*right_trigger, duration);
 		}    
 	}
 
 	void SetLED(Uint8 r, Uint8 g, Uint8 b){
-		SDL_GameControllerSetLED(controller, r, g, b);
+		SDL_SetGamepadLED(gamepad, r, g, b);
 	}
 };

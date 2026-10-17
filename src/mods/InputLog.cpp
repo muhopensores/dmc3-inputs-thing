@@ -44,9 +44,9 @@ void get_button(uint16_t input, char buffer[]) {
 		{ICON_RIGHT_ANALOG_PF, 1024},
 		{ICON_START_PF,        2048},
 		{ICON_DPAD_UP_PF,      4096},
-		{ICON_DPAD_LEFT_PF,    32768},
+        {ICON_DPAD_RIGHT_PF,   8192},
 		{ICON_DPAD_DOWN_PF,    16384},
-		{ICON_DPAD_RIGHT_PF,   8192}
+        {ICON_DPAD_LEFT_PF,    32768}
 	}
 	};
 	for (auto& icon : icon_values) {
